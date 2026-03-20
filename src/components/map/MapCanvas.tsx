@@ -26,10 +26,11 @@ const MAX_SCALE = 5;
 // ---------------------------------------------------------------------------
 // TokenShape
 // ---------------------------------------------------------------------------
-function TokenShape({ token, canControl, panMode, onDragMove, onDragEnd, onHpChange }: {
+function TokenShape({ token, canControl, panMode, stageScale, onDragMove, onDragEnd, onHpChange }: {
   token: Token;
   canControl: boolean;
   panMode: boolean;
+  stageScale: number;
   onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
   onHpChange: (token: Token, delta: number) => void;
@@ -46,6 +47,8 @@ function TokenShape({ token, canControl, panMode, onDragMove, onDragEnd, onHpCha
     <Group
       x={token.x}
       y={token.y}
+      scaleX={1 / stageScale}
+      scaleY={1 / stageScale}
       draggable={draggable}
       onDragMove={(e) => {
         const now = Date.now();
@@ -246,6 +249,7 @@ export default function MapCanvas({ sessionId, broadcastTokenMove }: MapCanvasPr
               token={token}
               canControl={canControl(token.owner_id)}
               panMode={panMode}
+              stageScale={stageScale}
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
               onHpChange={handleHpChange}
