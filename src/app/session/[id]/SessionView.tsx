@@ -1,0 +1,102 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useRealtimeSession } from "@/lib/useRealtimeSession";
+import { useSessionStore } from "@/store/session";
+import { useAuth } from "@/lib/useAuth";
+import PresenceBar from "@/components/session/PresenceBar";
+import TokenPanel from "@/components/session/TokenPanel";
+import DiceRoller from "@/components/dice/DiceRoller";
+import type { Session } from "@/types";
+
+const MapCanvas = dynamic(() => import("@/components/map/MapCanvas"), { ssr: false });
+
+interface SessionViewProps {
+  sessionId: string;
+  initialSession: Session;
+}
+
+export default function SessionView({ sessionId, initialSession }: SessionViewProps) {
+  useAuth();
+
+  const { setSession, session, userId } = useSessionStore();
+  const { broadcastTokenMove } = useRealtimeSession(sessionId);
+  const [mapError, setMapError] = useState("");
+
+  const isOwner = !!userId && session?.owner_id === userId;
+
+  useEffect(() => {
+    setSession(initialSession);
+  }, [initialSession, setSession]);
+
+  const handleMapUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isOwner) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMapError("");
+
+    const supabase = createClient();
+    const ext = file.name.split(".").pop();
+    const path = `${sessionId}/map.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("maps")
+      .upload(path, file, { upsert: true });
+
+    if (uploadError) { setMapError(uploadError.message); return; }
+
+    const { data } = supabase.storage.from("maps").getPublicUrl(path);
+
+    // Persist to DB — the sessions Postgres Changes subscription will
+    // propagate the new map_url to all connected clients automatically.
+    const { error: updateError } = await supabase
+      .from("sessions")
+      .update({ map_url: data.publicUrl })
+      .eq("id", sessionId);
+
+    if (updateError) { setMapError(updateError.message); return; }
+
+    // Update local store immediately (don't wait for the subscription round-trip)
+    // Spread from the current store session to avoid clobbering other fields.
+    const current = useSessionStore.getState().session;
+    if (current) setSession({ ...current, map_url: data.publicUrl });
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-950 text-white">
+      <PresenceBar isOwner={isOwner} />
+
+      <div className="flex flex-1 min-h-0 gap-0">
+        {/* Main map area */}
+        <div className="flex-1 min-w-0 relative p-2">
+          <MapCanvas sessionId={sessionId} broadcastTokenMove={broadcastTokenMove} />
+
+          {/* Map upload — DM only */}
+          {isOwner && (
+            <label className="absolute bottom-4 left-4 cursor-pointer">
+              <span className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 rounded border border-gray-600 transition-colors">
+                Upload Map
+              </span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleMapUpload} />
+            </label>
+          )}
+          {mapError && (
+            <p className="absolute bottom-4 left-36 text-xs text-red-400">{mapError}</p>
+          )}
+        </div>
+
+        {/* Right sidebar */}
+        <div className="w-64 shrink-0 bg-gray-900 border-l border-gray-800 flex flex-col">
+          <div className="flex-1 min-h-0 p-3 border-b border-gray-800 overflow-hidden flex flex-col">
+            <TokenPanel sessionId={sessionId} isOwner={isOwner} />
+          </div>
+          <div className="h-80 shrink-0 p-3 overflow-hidden flex flex-col">
+            <DiceRoller sessionId={sessionId} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

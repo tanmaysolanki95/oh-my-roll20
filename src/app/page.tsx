@@ -1,65 +1,166 @@
-import Image from "next/image";
+"use client";
+
+export const dynamic = "force-dynamic";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useSessionStore } from "@/store/session";
+import { useAuth } from "@/lib/useAuth";
+
+const PLAYER_COLORS = [
+  "#3b82f6", "#ef4444", "#22c55e", "#eab308",
+  "#a855f7", "#f97316", "#06b6d4", "#ec4899",
+];
 
 export default function Home() {
+  const router = useRouter();
+  const { setPlayerName, setPlayerColor, setUserId, playerName, playerColor, userId } = useSessionStore();
+  useAuth(); // ensures anonymous auth is set up and userId is populated
+
+  const [sessionName, setSessionName] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+  const [nameInput, setNameInput] = useState(playerName);
+  const [colorPick, setColorPick] = useState(playerColor);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const saveIdentity = () => {
+    setPlayerName(nameInput || "Adventurer");
+    setPlayerColor(colorPick);
+  };
+
+  const createSession = async () => {
+    if (!sessionName.trim()) { setError("Session name required"); return; }
+    setLoading(true);
+    setError("");
+    saveIdentity();
+
+    const supabase = createClient();
+
+    // Guarantee auth is ready before inserting — handles the race where
+    // useAuth()'s signInAnonymously() hasn't resolved yet.
+    let uid = userId;
+    if (!uid) {
+      const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
+      if (authError) { setError(`Auth error: ${authError.message}`); setLoading(false); return; }
+      uid = authData.user?.id ?? null;
+      if (uid) setUserId(uid);
+    }
+    if (!uid) { setError("Could not authenticate. Please refresh and try again."); setLoading(false); return; }
+
+    const { data, error: err } = await supabase
+      .from("sessions")
+      .insert({ name: sessionName.trim(), owner_id: uid })
+      .select()
+      .single();
+
+    setLoading(false);
+    if (err || !data) { setError(err?.message ?? "Failed to create session"); return; }
+    router.push(`/session/${data.id}`);
+  };
+
+  const joinSession = async () => {
+    if (!joinCode.trim()) { setError("Session code required"); return; }
+    setLoading(true);
+    setError("");
+    saveIdentity();
+
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("sessions")
+      .select("id")
+      .eq("id", joinCode.trim())
+      .single();
+
+    setLoading(false);
+    if (!data) { setError("Session not found. Check the code and try again."); return; }
+    router.push(`/session/${data.id}`);
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-6">
+        {/* Logo */}
+        <div className="text-center space-y-1">
+          <h1 className="text-4xl font-black tracking-tight text-indigo-400">
+            oh-my-roll20
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+          <p className="text-gray-500 text-sm">A VTT for friends, by friends</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Identity */}
+        <div className="bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-800">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Your Identity
+          </div>
+          <input
+            type="text"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="Your name"
+            className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-indigo-500 text-sm"
+          />
+          <div className="flex gap-2 flex-wrap">
+            {PLAYER_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setColorPick(c)}
+                style={{ background: c }}
+                className={`w-7 h-7 rounded-full transition-transform ${colorPick === c ? "scale-125 ring-2 ring-white" : ""}`}
+              />
+            ))}
+          </div>
         </div>
-      </main>
-    </div>
+
+        {/* Create session */}
+        <div className="bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-800">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            New Session
+          </div>
+          <input
+            type="text"
+            value={sessionName}
+            onChange={(e) => setSessionName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && createSession()}
+            placeholder="Campaign name..."
+            className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-indigo-500 text-sm"
+          />
+          <button
+            onClick={createSession}
+            disabled={loading}
+            className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold rounded transition-colors"
+          >
+            Create & Host
+          </button>
+        </div>
+
+        {/* Join session */}
+        <div className="bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-800">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Join Session
+          </div>
+          <input
+            type="text"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && joinSession()}
+            placeholder="Paste session code..."
+            className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-indigo-500 text-sm font-mono"
+          />
+          <button
+            onClick={joinSession}
+            disabled={loading}
+            className="w-full py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-bold rounded transition-colors"
+          >
+            Join
+          </button>
+        </div>
+
+        {error && (
+          <p className="text-sm text-red-400 text-center">{error}</p>
+        )}
+      </div>
+    </main>
   );
 }
