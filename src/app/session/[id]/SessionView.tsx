@@ -31,6 +31,14 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     setSession(initialSession);
   }, [initialSession, setSession]);
 
+  const changeGridSize = async (delta: number) => {
+    const current = useSessionStore.getState().session;
+    if (!current || !isOwner) return;
+    const newSize = Math.max(20, Math.min(200, current.grid_size + delta));
+    setSession({ ...current, grid_size: newSize }); // optimistic
+    await createClient().from("sessions").update({ grid_size: newSize }).eq("id", sessionId);
+  };
+
   const handleMapUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isOwner) return;
     const file = e.target.files?.[0];
@@ -89,6 +97,26 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
         {/* Right sidebar */}
         <div className="w-64 shrink-0 bg-gray-900 border-l border-gray-800 flex flex-col">
+          {/* Grid size — DM only */}
+          {isOwner && (
+            <div className="px-3 py-2 border-b border-gray-800 flex items-center gap-2">
+              <span className="text-xs text-gray-500 uppercase tracking-wider">Grid</span>
+              <div className="flex items-center gap-1 ml-auto">
+                <button
+                  onClick={() => changeGridSize(-10)}
+                  className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                >−</button>
+                <span className="text-xs text-gray-300 tabular-nums w-8 text-center">
+                  {session?.grid_size ?? 60}px
+                </span>
+                <button
+                  onClick={() => changeGridSize(10)}
+                  className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                >+</button>
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 min-h-0 p-3 border-b border-gray-800 overflow-hidden flex flex-col">
             <TokenPanel sessionId={sessionId} isOwner={isOwner} />
           </div>
