@@ -234,7 +234,7 @@ export default function MapCanvas({ sessionId, broadcastTokenMove }: MapCanvasPr
       >
         <Layer>
           {mapUrl
-            ? <MapBackground url={mapUrl} width={size.width / stageScale} height={size.height / stageScale} />
+            ? <MapBackground url={mapUrl} width={size.width} height={size.height} />
             : <Rect width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill="#1f2937" />
           }
           {gridLines}
