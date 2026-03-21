@@ -22,13 +22,17 @@ interface SessionStore {
   setUserId: (id: string | null) => void;
 }
 
+const stored = typeof window !== "undefined"
+  ? { name: localStorage.getItem("omr_playerName") ?? "", color: localStorage.getItem("omr_playerColor") ?? "#3b82f6" }
+  : { name: "", color: "#3b82f6" };
+
 export const useSessionStore = create<SessionStore>((set) => ({
   session: null,
   tokens: [],
   diceLog: [],
   presence: [],
-  playerName: "",
-  playerColor: "#3b82f6",
+  playerName: stored.name,
+  playerColor: stored.color,
   userId: null,
 
   setSession: (session) => set({ session }),
@@ -59,9 +63,15 @@ export const useSessionStore = create<SessionStore>((set) => ({
 
   setPresence: (presence) => set({ presence }),
 
-  setPlayerName: (playerName) => set({ playerName }),
+  setPlayerName: (playerName) => {
+    if (typeof window !== "undefined") localStorage.setItem("omr_playerName", playerName);
+    set({ playerName });
+  },
 
-  setPlayerColor: (playerColor) => set({ playerColor }),
+  setPlayerColor: (playerColor) => {
+    if (typeof window !== "undefined") localStorage.setItem("omr_playerColor", playerColor);
+    set({ playerColor });
+  },
 
   setUserId: (userId) => set({ userId }),
 }));

@@ -10,6 +10,13 @@ interface DiceRollerProps {
   onCollapse?: () => void;
 }
 
+function relativeTime(iso: string): string {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return "now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  return `${Math.floor(diff / 3600)}h`;
+}
+
 export default function DiceRoller({ sessionId, onCollapse }: DiceRollerProps) {
   const supabase = createClient();
   const { diceLog, playerName, addDiceRoll } = useSessionStore();
@@ -19,6 +26,8 @@ export default function DiceRoller({ sessionId, onCollapse }: DiceRollerProps) {
     expression: string;
     result: number;
     breakdown: string;
+    sides: number;
+    count: number;
   } | null>(null);
 
   const roll = async (expression: string) => {
@@ -32,36 +41,40 @@ export default function DiceRoller({ sessionId, onCollapse }: DiceRollerProps) {
     const { result, breakdown } = rollDice(parsed);
     const formattedExpr = formatExpression(parsed);
 
-    setLastResult({ expression: formattedExpr, result, breakdown });
+    setLastResult({ expression: formattedExpr, result, breakdown, sides: parsed.sides, count: parsed.count });
 
-    // Persist to DB (triggers broadcast to others via our realtime hook)
-    const roll = {
+    const rollEntry = {
       id: crypto.randomUUID(),
       session_id: sessionId,
-      player_name: playerName || "Anonymous",
+      player_name: playerName || "Adventurer",
       expression: formattedExpr,
       result,
       breakdown,
       created_at: new Date().toISOString(),
     };
 
-    // Add locally immediately
-    addDiceRoll(roll);
+    addDiceRoll(rollEntry);
 
-    // Persist to Supabase
     await supabase.from("dice_rolls").insert({
-      session_id: roll.session_id,
-      player_name: roll.player_name,
-      expression: roll.expression,
-      result: roll.result,
-      breakdown: roll.breakdown,
+      session_id: rollEntry.session_id,
+      player_name: rollEntry.player_name,
+      expression: rollEntry.expression,
+      result: rollEntry.result,
+      breakdown: rollEntry.breakdown,
     });
   };
 
+  const isNatMax = lastResult !== null && lastResult.count === 1 && lastResult.result === lastResult.sides;
+  const isNatMin = lastResult !== null && lastResult.count === 1 && lastResult.result === 1;
+
   return (
     <div className="flex flex-col gap-3 h-full">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Dice</div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-base">🎲</span>
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Dice</span>
+        </div>
         {onCollapse && (
           <button
             onClick={onCollapse}
@@ -74,14 +87,18 @@ export default function DiceRoller({ sessionId, onCollapse }: DiceRollerProps) {
       </div>
 
       {/* Quick roll buttons */}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="grid grid-cols-7 gap-1">
         {QUICK_DICE.map((sides) => (
           <button
             key={sides}
             onClick={() => roll(`1d${sides}`)}
-            className="px-2.5 py-1 text-xs font-bold bg-gray-700 hover:bg-indigo-600 text-white rounded transition-colors"
+            className={`py-1.5 text-[10px] font-bold rounded transition-all ${
+              sides === 20
+                ? "bg-violet-800 hover:bg-violet-700 text-white shadow-[0_0_8px_rgba(124,58,237,0.5)]"
+                : "bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700"
+            }`}
           >
-            d{sides}
+            d{sides === 100 ? "%" : sides}
           </button>
         ))}
       </div>
@@ -94,11 +111,11 @@ export default function DiceRoller({ sessionId, onCollapse }: DiceRollerProps) {
           onChange={(e) => setExpr(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && roll(expr)}
           placeholder="e.g. 3d20+10"
-          className="flex-1 bg-gray-700 text-white text-sm px-3 py-1.5 rounded border border-gray-600 focus:outline-none focus:border-indigo-500"
+          className="flex-1 bg-gray-800 text-white text-sm px-3 py-1.5 rounded-lg border border-gray-700 focus:outline-none focus:border-violet-500 font-mono"
         />
         <button
           onClick={() => roll(expr)}
-          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded transition-colors"
+          className="px-3 py-1.5 bg-violet-700 hover:bg-violet-600 text-white text-sm font-bold rounded-lg transition-colors shadow-[0_0_10px_rgba(124,58,237,0.4)]"
           title="Roll dice — result is shared with all players in the session"
         >
           Roll
@@ -109,26 +126,41 @@ export default function DiceRoller({ sessionId, onCollapse }: DiceRollerProps) {
 
       {/* Last result callout */}
       {lastResult && (
-        <div className="bg-gray-700 rounded-lg p-3 text-center">
-          <div className="text-3xl font-black text-white">{lastResult.result}</div>
-          <div className="text-xs text-gray-400 mt-1">{lastResult.breakdown}</div>
-          <div className="text-xs text-indigo-400 font-mono">{lastResult.expression}</div>
+        <div className="rounded-xl border border-violet-900 bg-[#0d0d18] px-3 py-3 text-center shadow-[0_0_24px_rgba(124,58,237,0.2)]">
+          <div
+            className="text-5xl font-black text-white leading-none tabular-nums"
+            style={{ textShadow: isNatMax ? "0 0 24px rgba(167,139,250,0.8)" : undefined }}
+          >
+            {lastResult.result}
+          </div>
+          {isNatMax && (
+            <div className="text-[10px] font-bold text-violet-400 tracking-widest uppercase mt-1">
+              Natural {lastResult.sides} ✨
+            </div>
+          )}
+          {isNatMin && !isNatMax && (
+            <div className="text-[10px] font-bold text-red-500 tracking-widest uppercase mt-1">
+              Natural 1 💀
+            </div>
+          )}
+          <div className="text-xs text-gray-500 mt-1 font-mono">{lastResult.breakdown}</div>
+          <div className="text-xs text-violet-800 font-mono">{lastResult.expression}</div>
         </div>
       )}
 
       {/* Roll log */}
-      <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-0 divide-y divide-gray-800">
         {diceLog.map((r) => (
-          <div key={r.id} className="flex items-center gap-2 text-xs bg-gray-800 rounded px-2 py-1.5">
-            <span
-              className="font-bold text-white shrink-0 w-7 text-center tabular-nums"
-            >
+          <div key={r.id} className="flex items-center gap-2 text-xs py-1.5 px-0.5">
+            <span className="min-w-[22px] text-right font-bold tabular-nums text-violet-400 shrink-0">
               {r.result}
             </span>
-            <span className="text-gray-400 truncate">
-              <span className="text-indigo-400">{r.player_name}</span>{" "}
-              rolled {r.expression}
+            <span className="flex-1 text-gray-500 truncate">
+              <span className="text-gray-200 font-medium">{r.player_name}</span>
+              {" · "}
+              {r.expression}
             </span>
+            <span className="text-gray-700 text-[10px] shrink-0">{relativeTime(r.created_at)}</span>
           </div>
         ))}
       </div>
