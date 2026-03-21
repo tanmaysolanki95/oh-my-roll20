@@ -49,6 +49,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
 
   const addToken = async () => {
     if (!name.trim()) return;
+    if (atLimit) { setAddError(`Token limit reached (max ${maxTokens}).`); return; }
     setAddError("");
     const spawn = await getSpawnPosition();
     const supabase = createClient();
@@ -114,8 +115,11 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
     await supabase.from("tokens").update({ owner_id: null }).eq("id", id);
   };
 
-  // Any authenticated user can add a token
-  const canAdd = isOwner || !!userId;
+  const maxTokens = session?.max_tokens_per_player ?? 1;
+  const ownedCount = tokens.filter((t) => t.owner_id === userId).length;
+  const atLimit = !isOwner && !!userId && ownedCount >= maxTokens;
+  // Any authenticated user can add a token, unless they've hit their limit
+  const canAdd = (isOwner || !!userId) && !atLimit;
 
   return (
     <div className="flex flex-col gap-3 h-full">

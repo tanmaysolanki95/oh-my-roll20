@@ -15,6 +15,7 @@ export interface Session {
   fog_enabled: boolean;
   fog_shapes: FogShape[];
   join_code: string;
+  max_tokens_per_player: number;
   owner_id: string;
   created_at: string;
 }

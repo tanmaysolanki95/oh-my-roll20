@@ -47,6 +47,14 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     router.push("/");
   };
 
+  const changeMaxTokens = async (delta: number) => {
+    const current = useSessionStore.getState().session;
+    if (!current || !isOwner) return;
+    const newMax = Math.max(1, Math.min(20, current.max_tokens_per_player + delta));
+    setSession({ ...current, max_tokens_per_player: newMax });
+    await createClient().from("sessions").update({ max_tokens_per_player: newMax }).eq("id", sessionId);
+  };
+
   const changeGridSize = async (delta: number) => {
     const current = useSessionStore.getState().session;
     if (!current || !isOwner) return;
@@ -135,6 +143,23 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                   </button>
                 </div>
               )}
+              {/* Max tokens per player */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 uppercase tracking-wider">Player tokens</span>
+                <div className="flex items-center gap-1 ml-auto">
+                  <button
+                    onClick={() => changeMaxTokens(-1)}
+                    className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                  >−</button>
+                  <span className="text-xs text-gray-300 tabular-nums w-6 text-center">
+                    {session?.max_tokens_per_player ?? 1}
+                  </span>
+                  <button
+                    onClick={() => changeMaxTokens(1)}
+                    className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                  >+</button>
+                </div>
+              </div>
               {/* Grid size */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 uppercase tracking-wider">Grid</span>
