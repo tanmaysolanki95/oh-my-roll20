@@ -22,17 +22,13 @@ interface SessionStore {
   setUserId: (id: string | null) => void;
 }
 
-const stored = typeof window !== "undefined"
-  ? { name: localStorage.getItem("omr_playerName") ?? "", color: localStorage.getItem("omr_playerColor") ?? "#3b82f6" }
-  : { name: "", color: "#3b82f6" };
-
 export const useSessionStore = create<SessionStore>((set) => ({
   session: null,
   tokens: [],
   diceLog: [],
   presence: [],
-  playerName: stored.name,
-  playerColor: stored.color,
+  playerName: "",
+  playerColor: "#3b82f6",
   userId: null,
 
   setSession: (session) => set({ session }),

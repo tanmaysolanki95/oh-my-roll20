@@ -10,9 +10,15 @@ import { useSessionStore } from "@/store/session";
  * The resulting user.id is stored in the session store as `userId`.
  */
 export function useAuth() {
-  const setUserId = useSessionStore((s) => s.setUserId);
+  const { setUserId, setPlayerName, setPlayerColor } = useSessionStore();
 
   useEffect(() => {
+    // Restore player identity from localStorage after mount (safe — no SSR mismatch)
+    const savedName = localStorage.getItem("omr_playerName");
+    const savedColor = localStorage.getItem("omr_playerColor");
+    if (savedName) setPlayerName(savedName);
+    if (savedColor) setPlayerColor(savedColor);
+
     const supabase = createClient();
 
     // Restore existing session or create an anonymous one

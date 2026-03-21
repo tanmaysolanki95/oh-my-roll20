@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSessionStore } from "@/store/session";
@@ -25,6 +25,12 @@ export default function Home() {
   const [colorPick, setColorPick] = useState(playerColor);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Sync local inputs once useAuth() restores playerName/playerColor from localStorage
+  useEffect(() => {
+    if (playerName) setNameInput(playerName);
+    if (playerColor) setColorPick(playerColor);
+  }, [playerName, playerColor]);
 
   const saveIdentity = () => {
     setPlayerName(nameInput || "Adventurer");
