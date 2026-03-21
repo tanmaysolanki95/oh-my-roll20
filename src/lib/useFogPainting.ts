@@ -6,6 +6,8 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import { useSessionStore } from "@/store/session";
 import type { FogShape } from "@/types";
 
+const MAX_FOG_HISTORY = 50;
+
 interface UseFogPaintingOptions {
   stageRef: React.RefObject<Konva.Stage | null>;
   stageScaleRef: { current: number };
@@ -35,10 +37,22 @@ export function useFogPainting({ stageRef, stageScaleRef, stagePosRef, isOwner, 
   const commitFogShape = async (shape: FogShape) => {
     const s = useSessionStore.getState().session;
     if (!s) return;
-    const shapes = [...(s.fog_shapes ?? []), shape];
-    setSession({ ...s, fog_shapes: shapes });
+    const prevShapes = s.fog_shapes ?? [];
+    const prevHistory = s.fog_history ?? [];
+
+    // Push current fog_shapes as a snapshot; drop oldest if at cap
+    const trimmed = prevHistory.length >= MAX_FOG_HISTORY
+      ? prevHistory.slice(1)
+      : prevHistory;
+    const newHistory = [...trimmed, prevShapes];
+    const newShapes = [...prevShapes, shape];
+
+    setSession({ ...s, fog_shapes: newShapes, fog_history: newHistory });
     const { createClient } = await import("@/lib/supabase/client");
-    await createClient().from("sessions").update({ fog_shapes: shapes }).eq("id", s.id);
+    await createClient()
+      .from("sessions")
+      .update({ fog_shapes: newShapes, fog_history: newHistory })
+      .eq("id", s.id);
   };
 
   /** Returns true if fog consumed the event (caller should skip pan logic). */
