@@ -26,16 +26,21 @@ export function useMapZoom(imageBounds: Bounds) {
   useEffect(() => { sizeRef.current = size; }, [size]);
   useEffect(() => { imageBoundsRef.current = imageBounds; }, [imageBounds]);
 
-  // Responsive canvas sizing — also re-clamp pos so map stays in view when sidebar resizes
+  // Responsive canvas sizing — shift position by half the size delta so equal
+  // padding on each side is preserved when the sidebar is resized.
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
       const { width, height } = entries[0].contentRect;
+      const dx = width  - sizeRef.current.width;
+      const dy = height - sizeRef.current.height;
       setSize({ width, height });
-      const newPos = clampStagePos(stagePosRef.current, stageScaleRef.current, { width, height }, imageBoundsRef.current);
-      if (newPos.x !== stagePosRef.current.x || newPos.y !== stagePosRef.current.y) {
-        stagePosRef.current = newPos;
-        setStagePos(newPos);
-      }
+      const adjusted = {
+        x: stagePosRef.current.x + dx / 2,
+        y: stagePosRef.current.y + dy / 2,
+      };
+      const newPos = clampStagePos(adjusted, stageScaleRef.current, { width, height }, imageBoundsRef.current);
+      stagePosRef.current = newPos;
+      setStagePos(newPos);
     });
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
