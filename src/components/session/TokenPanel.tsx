@@ -82,6 +82,13 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
     await supabase.from("tokens").delete().eq("id", id);
   };
 
+  const updateHp = async (token: Token, delta: number) => {
+    const newHp = Math.max(0, Math.min(token.max_hp, token.hp + delta));
+    upsertToken({ ...token, hp: newHp });
+    const supabase = createClient();
+    await supabase.from("tokens").update({ hp: newHp }).eq("id", token.id);
+  };
+
   const updateSize = async (token: Token, delta: number) => {
     const current = token.size ?? session?.token_size ?? 56;
     const newSize = Math.max(MIN_TOKEN_SIZE, Math.min(MAX_TOKEN_SIZE, current + delta));
@@ -245,21 +252,58 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                 </div>
               </div>
 
-              {/* HP bar — read-only visual indicator */}
-              <div className="px-1">
-                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${hpRatio * 100}%`,
-                      background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
-                    }}
-                  />
+              {/* HP controls */}
+              {controllable ? (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => updateHp(token, -1)}
+                      className="w-6 h-6 bg-gray-700 hover:bg-red-900 text-white rounded text-sm font-bold transition-colors shrink-0"
+                    >−</button>
+                    <div className="flex-1">
+                      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${hpRatio * 100}%`,
+                            background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
+                          }}
+                        />
+                      </div>
+                      <div className="text-xs text-gray-400 text-center tabular-nums mt-0.5">
+                        {token.hp} / {token.max_hp}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => updateHp(token, 1)}
+                      className="w-6 h-6 bg-gray-700 hover:bg-green-900 text-white rounded text-sm font-bold transition-colors shrink-0"
+                    >+</button>
+                  </div>
+                  {token.hp === 0 && (
+                    <button
+                      onClick={() => updateHp(token, token.max_hp)}
+                      className="w-full py-0.5 text-xs font-semibold text-green-400 hover:text-white hover:bg-green-800 border border-green-800 hover:border-green-700 rounded transition-colors"
+                    >
+                      Revive
+                    </button>
+                  )}
                 </div>
-                <div className="text-xs text-gray-500 text-center tabular-nums mt-0.5">
-                  {token.hp} / {token.max_hp}
+              ) : (
+                <div className="px-1">
+                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${hpRatio * 100}%`,
+                        background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
+                      }}
+                    />
+                  </div>
+                  <div className="text-xs text-gray-500 text-center tabular-nums mt-0.5">
+                    {token.hp} / {token.max_hp}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Size slider — token owner or DM */}
               {controllable && (

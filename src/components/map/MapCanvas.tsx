@@ -313,12 +313,13 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
           {tokens.filter(t => isOwner || (t.visible ?? true)).map((token) => {
             const controllable = canControl(token.owner_id);
             const isLockedByOwner = token.owner_id !== null && lockedBy[token.id] === token.owner_id;
+            const isDead = token.hp === 0;
             return (
               <TokenShape
                 key={token.id}
                 token={token}
-                draggable={controllable && !(isOwner && isLockedByOwner)}
-                opacity={isOwner && !(token.visible ?? true) ? 0.35 : 1}
+                draggable={controllable && !(isOwner && isLockedByOwner) && (!isDead || isOwner)}
+                opacity={isOwner && !(token.visible ?? true) ? 0.35 : isDead ? 0.5 : 1}
                 tokenSize={token.size ?? DEFAULT_TOKEN_SIZE}
                 imageBounds={imageBounds}
                 stageRef={stageRef}
