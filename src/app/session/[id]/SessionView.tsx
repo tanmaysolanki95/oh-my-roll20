@@ -27,6 +27,9 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   const [mapError, setMapError] = useState("");
   const [codeCopied, setCodeCopied] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(256);
+  const [tokensCollapsed, setTokensCollapsed] = useState(false);
+  const [diceCollapsed, setDiceCollapsed] = useState(false);
+  const [diceHeight, setDiceHeight] = useState(320);
 
   const copyJoinCode = () => {
     if (!session?.join_code) return;
@@ -114,7 +117,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
           {/* Map upload — DM only */}
           {isOwner && (
-            <label className="absolute bottom-4 left-4 cursor-pointer">
+            <label className="absolute bottom-4 left-4 cursor-pointer" title="Upload an image to use as the battle map — enables fog of war automatically">
               <span className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 rounded border border-gray-600 transition-colors">
                 Upload Map
               </span>
@@ -166,11 +169,12 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
               )}
               {/* Max tokens per player */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wider">Player tokens</span>
+                <span className="text-xs text-gray-500 uppercase tracking-wider" title="Maximum number of tokens each player can place on the map">Player tokens</span>
                 <div className="flex items-center gap-1 ml-auto">
                   <button
                     onClick={() => changeMaxTokens(-1)}
                     className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                    title="Decrease max tokens per player"
                   >−</button>
                   <span className="text-xs text-gray-300 tabular-nums w-6 text-center">
                     {session?.max_tokens_per_player ?? 1}
@@ -178,16 +182,18 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                   <button
                     onClick={() => changeMaxTokens(1)}
                     className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                    title="Increase max tokens per player"
                   >+</button>
                 </div>
               </div>
               {/* Grid size */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wider">Grid</span>
+                <span className="text-xs text-gray-500 uppercase tracking-wider" title="Size of each grid cell in canvas pixels">Grid</span>
                 <div className="flex items-center gap-1 ml-auto">
                   <button
                     onClick={() => changeGridSize(-10)}
                     className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                    title="Shrink grid cells"
                   >−</button>
                   <span className="text-xs text-gray-300 tabular-nums w-8 text-center">
                     {session?.grid_size ?? 60}px
@@ -195,6 +201,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                   <button
                     onClick={() => changeGridSize(10)}
                     className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                    title="Enlarge grid cells"
                   >+</button>
                 </div>
               </div>
@@ -202,18 +209,66 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
               <button
                 onClick={endSession}
                 className="w-full py-1 text-xs font-semibold text-red-400 hover:text-white hover:bg-red-700 border border-red-800 hover:border-red-700 rounded transition-colors"
+                title="Permanently delete this session and all its tokens and dice rolls"
               >
                 End Session
               </button>
             </div>
           )}
 
-          <div className="flex-1 min-h-0 p-3 border-b border-gray-800 overflow-hidden flex flex-col">
-            <TokenPanel sessionId={sessionId} isOwner={isOwner} />
-          </div>
-          <div className="h-80 shrink-0 p-3 overflow-hidden flex flex-col">
-            <DiceRoller sessionId={sessionId} />
-          </div>
+          {/* Tokens panel */}
+          {tokensCollapsed ? (
+            <button
+              onClick={() => setTokensCollapsed(false)}
+              className="flex items-center justify-between px-3 py-1.5 border-b border-gray-800 text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors shrink-0"
+              title="Expand token panel"
+            >
+              <span className="text-xs font-semibold uppercase tracking-wider">Tokens</span>
+              <span className="text-xs">▾</span>
+            </button>
+          ) : (
+            <div className={`${diceCollapsed ? "flex-1" : ""} min-h-0 px-3 pb-3 pt-1 overflow-hidden flex flex-col`}
+              style={!diceCollapsed ? { height: `calc(100% - ${diceHeight}px - 4px)` } : undefined}
+            >
+              <TokenPanel sessionId={sessionId} isOwner={isOwner} onCollapse={() => setTokensCollapsed(true)} />
+            </div>
+          )}
+
+          {/* Drag handle between panels */}
+          {!tokensCollapsed && !diceCollapsed && (
+            <div
+              className="h-1 shrink-0 cursor-row-resize bg-gray-800 hover:bg-indigo-500/60 active:bg-indigo-500 transition-colors"
+              title="Drag to resize panels"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                const startY = e.clientY;
+                const startH = diceHeight;
+                const onMove = (ev: PointerEvent) => setDiceHeight(Math.max(120, Math.min(500, startH + (startY - ev.clientY))));
+                const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
+                window.addEventListener("pointermove", onMove);
+                window.addEventListener("pointerup", onUp);
+              }}
+            />
+          )}
+
+          {/* Dice panel */}
+          {diceCollapsed ? (
+            <button
+              onClick={() => setDiceCollapsed(false)}
+              className="flex items-center justify-between px-3 py-1.5 border-t border-gray-800 text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors shrink-0"
+              title="Expand dice roller"
+            >
+              <span className="text-xs font-semibold uppercase tracking-wider">Dice</span>
+              <span className="text-xs">▾</span>
+            </button>
+          ) : (
+            <div
+              className={`shrink-0 px-3 pb-3 pt-1 overflow-hidden flex flex-col ${tokensCollapsed ? "flex-1" : ""}`}
+              style={!tokensCollapsed ? { height: diceHeight } : undefined}
+            >
+              <DiceRoller sessionId={sessionId} onCollapse={() => setDiceCollapsed(true)} />
+            </div>
+          )}
         </div>
       </div>
     </div>

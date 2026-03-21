@@ -7,9 +7,10 @@ import { useSessionStore } from "@/store/session";
 
 interface DiceRollerProps {
   sessionId: string;
+  onCollapse?: () => void;
 }
 
-export default function DiceRoller({ sessionId }: DiceRollerProps) {
+export default function DiceRoller({ sessionId, onCollapse }: DiceRollerProps) {
   const supabase = createClient();
   const { diceLog, playerName, addDiceRoll } = useSessionStore();
   const [expr, setExpr] = useState("1d20");
@@ -59,7 +60,18 @@ export default function DiceRoller({ sessionId }: DiceRollerProps) {
 
   return (
     <div className="flex flex-col gap-3 h-full">
-      <div className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Dice</div>
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Dice</div>
+        {onCollapse && (
+          <button
+            onClick={onCollapse}
+            className="text-gray-600 hover:text-gray-300 text-xs px-1 transition-colors"
+            title="Collapse dice roller"
+          >
+            ▲
+          </button>
+        )}
+      </div>
 
       {/* Quick roll buttons */}
       <div className="flex flex-wrap gap-1.5">
@@ -87,6 +99,7 @@ export default function DiceRoller({ sessionId }: DiceRollerProps) {
         <button
           onClick={() => roll(expr)}
           className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded transition-colors"
+          title="Roll dice — result is shared with all players in the session"
         >
           Roll
         </button>

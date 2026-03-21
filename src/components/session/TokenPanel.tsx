@@ -15,9 +15,10 @@ import { MIN_TOKEN_SIZE, MAX_TOKEN_SIZE } from "@/lib/mapUtils";
 interface TokenPanelProps {
   sessionId: string;
   isOwner: boolean;
+  onCollapse?: () => void;
 }
 
-export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
+export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPanelProps) {
   const { tokens, session, userId, upsertToken, removeToken: removeTokenFromStore } = useSessionStore();
   const [adding, setAdding] = useState(false);
   const [pendingSize, setPendingSize] = useState<Record<string, number>>({});
@@ -116,14 +117,26 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
     <div className="flex flex-col gap-3 h-full">
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Tokens</span>
-        {canAdd && (
-          <button
-            onClick={() => setAdding((v) => !v)}
-            className="text-xs px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
-          >
-            {adding ? "Cancel" : "+ Add"}
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {canAdd && (
+            <button
+              onClick={() => setAdding((v) => !v)}
+              className="text-xs px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
+              title={adding ? "Cancel adding token" : "Add a new character token to the map"}
+            >
+              {adding ? "Cancel" : "+ Add"}
+            </button>
+          )}
+          {onCollapse && (
+            <button
+              onClick={onCollapse}
+              className="text-gray-600 hover:text-gray-300 text-xs px-1 transition-colors"
+              title="Collapse token panel"
+            >
+              ▲
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Add token form */}
@@ -215,6 +228,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                     <button
                       onClick={() => claimToken(token.id)}
                       className="text-xs px-1.5 py-0.5 bg-indigo-700 hover:bg-indigo-600 text-white rounded transition-colors"
+                      title="Take ownership of this token — only you and the DM will be able to move it"
                     >
                       Claim
                     </button>
@@ -223,7 +237,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                     <button
                       onClick={() => unclaimToken(token.id)}
                       className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-                      title="Release token"
+                      title="Release ownership — anyone can claim this token afterwards"
                     >
                       ↩
                     </button>
@@ -237,7 +251,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                           ? "text-gray-500 hover:text-white hover:bg-gray-700"
                           : "text-yellow-400 bg-gray-700 hover:text-yellow-300"
                       }`}
-                      title={token.visible ? "Hide from players" : "Show to players"}
+                      title={token.visible ? "Hide token — players won't see it on the map, you see it dimmed" : "Show token to all players"}
                     >
                       {token.visible ? "Hide" : "Show"}
                     </button>
@@ -247,6 +261,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                     <button
                       onClick={() => removeToken(token.id)}
                       className="text-gray-600 hover:text-red-400 text-xs transition-colors"
+                      title="Remove token from the map"
                     >
                       ✕
                     </button>
