@@ -61,6 +61,14 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   const router = useRouter();
   const isOwner = !!userId && session?.owner_id === userId;
 
+  // Force fog tool off when the DM hits the 50-operation cap
+  const fogAtLimitRef = useRef(false);
+  useEffect(() => {
+    const atLimit = (session?.fog_history ?? []).length >= 50;
+    if (atLimit && !fogAtLimitRef.current) setFogTool(null);
+    fogAtLimitRef.current = atLimit;
+  }, [session?.fog_history]);
+
   useEffect(() => { setSession(initialSession); }, [initialSession, setSession]);
 
   // ── DM actions ────────────────────────────────────────────────────────────
@@ -117,8 +125,22 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   const clearFog = async () => {
     const current = useSessionStore.getState().session;
     if (!current || !isOwner) return;
-    setSession({ ...current, fog_shapes: [] });
-    await createClient().from("sessions").update({ fog_shapes: [] }).eq("id", sessionId);
+    setSession({ ...current, fog_shapes: [], fog_history: [] });
+    await createClient().from("sessions").update({ fog_shapes: [], fog_history: [] }).eq("id", sessionId);
+  };
+
+  const undoFog = async () => {
+    const current = useSessionStore.getState().session;
+    if (!current || !isOwner) return;
+    const history = current.fog_history ?? [];
+    if (history.length === 0) return;
+    const newHistory = history.slice(0, -1);
+    const previousShapes = history[history.length - 1];
+    setSession({ ...current, fog_shapes: previousShapes, fog_history: newHistory });
+    await createClient()
+      .from("sessions")
+      .update({ fog_shapes: previousShapes, fog_history: newHistory })
+      .eq("id", sessionId);
   };
 
   const commitTokenSize = async (newSize: number) => {
@@ -189,6 +211,8 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
   const tokenSize = session?.token_size ?? 56;
   const allSizesLocked = tokens.length > 0 && tokens.every(t => t.size_locked);
+  const fogHistory = session?.fog_history ?? [];
+  const fogAtLimit = fogHistory.length >= 50;
 
   // ── Name gate ─────────────────────────────────────────────────────────────
   // Show after auth check — wait one tick so useAuth's effect can restore the name first.
@@ -358,29 +382,61 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                       {/* Painting tools */}
                       <div className="grid grid-cols-2 gap-2 mb-2">
                         <button
-                          onClick={() => setFogTool(fogTool === "reveal" ? null : "reveal")}
+                          onClick={() => { if (!fogAtLimit) setFogTool(fogTool === "reveal" ? null : "reveal"); }}
+                          disabled={fogAtLimit}
                           className={`py-2 rounded-lg text-xs font-bold transition-colors ${
-                            fogTool === "reveal" ? "bg-green-700 text-white" : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                            fogAtLimit
+                              ? "bg-gray-800 text-gray-600 cursor-not-allowed"
+                              : fogTool === "reveal"
+                                ? "bg-green-700 text-white"
+                                : "bg-gray-700 hover:bg-gray-600 text-gray-300"
                           }`}
-                          title="Drag on the map to uncover an area for players"
+                          title={fogAtLimit ? "Limit reached" : "Drag on the map to uncover an area for players"}
                         >
                           👁 Reveal area
                         </button>
                         <button
-                          onClick={() => setFogTool(fogTool === "hide" ? null : "hide")}
+                          onClick={() => { if (!fogAtLimit) setFogTool(fogTool === "hide" ? null : "hide"); }}
+                          disabled={fogAtLimit}
                           className={`py-2 rounded-lg text-xs font-bold transition-colors ${
-                            fogTool === "hide" ? "bg-red-800 text-white" : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                            fogAtLimit
+                              ? "bg-gray-800 text-gray-600 cursor-not-allowed"
+                              : fogTool === "hide"
+                                ? "bg-red-800 text-white"
+                                : "bg-gray-700 hover:bg-gray-600 text-gray-300"
                           }`}
-                          title="Drag on the map to re-fog an area"
+                          title={fogAtLimit ? "Limit reached" : "Drag on the map to re-fog an area"}
                         >
                           🌑 Hide area
                         </button>
                       </div>
-                      {fogTool && (
+
+                      {/* Status line: at-limit notice OR active tool hint */}
+                      {fogAtLimit ? (
+                        <p className="text-[11px] text-amber-400 text-center mb-2">
+                          Limit reached — undo or reset to continue.
+                        </p>
+                      ) : fogTool ? (
                         <p className="text-[11px] text-indigo-400 text-center mb-2">
                           {fogTool === "reveal" ? "Drag on the map to reveal an area →" : "Drag on the map to hide an area →"}
                         </p>
-                      )}
+                      ) : null}
+
+                      {/* Operation counter + Undo */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] text-gray-500">
+                          {fogHistory.length} / 50 fog operations
+                        </span>
+                        <button
+                          onClick={undoFog}
+                          disabled={fogHistory.length === 0}
+                          className="text-xs px-2.5 py-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 hover:text-white rounded-lg transition-colors"
+                          title="Undo last fog operation"
+                        >
+                          ↩ Undo last
+                        </button>
+                      </div>
+
                       <button
                         onClick={clearFog}
                         className="w-full py-1.5 rounded-lg text-xs text-gray-500 hover:text-white hover:bg-gray-700 border border-gray-700 hover:border-gray-600 transition-colors"
