@@ -1,3 +1,5 @@
+export type Theme = 'grimoire' | 'scroll' | 'neon';
+
 export interface FogShape {
   x: number;
   y: number;
@@ -19,6 +21,7 @@ export interface Session {
   join_code: string;
   max_tokens_per_player: number;
   owner_id: string;
+  theme: Theme;
   created_at: string;
 }
 
