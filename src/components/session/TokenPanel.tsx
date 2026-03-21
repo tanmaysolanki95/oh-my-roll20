@@ -175,12 +175,18 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
   return (
     <div className="flex flex-col gap-3 h-full">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Tokens</span>
+        <span
+          className="text-sm font-semibold uppercase tracking-wider"
+          style={{ color: "var(--theme-text-primary)", fontFamily: "var(--theme-font-display)" }}
+        >
+          Tokens
+        </span>
         <div className="flex items-center gap-1">
           {canAdd && (
             <button
               onClick={() => setAdding((v) => !v)}
-              className="text-xs px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
+              className="text-xs px-2 py-1 text-white rounded transition-colors"
+              style={{ background: "var(--theme-accent)" }}
               title={adding ? "Cancel adding token" : "Add a new character token to the map"}
             >
               {adding ? "Cancel" : "+ Add"}
@@ -189,7 +195,8 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
           {onCollapse && (
             <button
               onClick={onCollapse}
-              className="text-gray-600 hover:text-gray-300 text-xs px-1 transition-colors"
+              className="text-xs px-1 transition-colors"
+              style={{ color: "var(--theme-text-muted)" }}
               title="Collapse token panel"
             >
               ▲
@@ -200,7 +207,10 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
 
       {/* Add token form */}
       {canAdd && adding && (
-        <div className="bg-gray-800/80 rounded-xl p-3 space-y-2 border border-gray-700/40">
+        <div
+          className="rounded-xl p-3 space-y-2 border"
+          style={{ background: "var(--theme-bg-panel)", borderColor: "var(--theme-border)" }}
+        >
           <input
             autoFocus
             type="text"
@@ -208,15 +218,30 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addToken()}
             placeholder="Token name"
-            className="w-full bg-gray-700 text-white text-sm px-3 py-1.5 rounded border border-gray-600 focus:outline-none focus:border-indigo-500"
+            className="w-full text-sm px-3 py-1.5 rounded border focus:outline-none"
+            style={{
+              background: "var(--theme-bg-deep)",
+              color: "var(--theme-text-primary)",
+              borderColor: "var(--theme-border)",
+            }}
           />
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-400 shrink-0">Max HP</label>
+            <label
+              className="text-xs shrink-0"
+              style={{ color: "var(--theme-text-secondary)" }}
+            >
+              Max HP
+            </label>
             <input
               type="number"
               value={maxHp}
               onChange={(e) => setMaxHp(Math.max(1, parseInt(e.target.value) || 1))}
-              className="w-16 bg-gray-700 text-white text-sm px-2 py-1.5 rounded border border-gray-600 focus:outline-none focus:border-indigo-500"
+              className="w-16 text-sm px-2 py-1.5 rounded border focus:outline-none"
+              style={{
+                background: "var(--theme-bg-deep)",
+                color: "var(--theme-text-primary)",
+                borderColor: "var(--theme-border)",
+              }}
             />
           </div>
           <div className="flex gap-1.5 flex-wrap">
@@ -233,7 +258,8 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
           {addError && <p className="text-xs text-red-400">{addError}</p>}
           <button
             onClick={addToken}
-            className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded transition-colors"
+            className="w-full py-1.5 text-white text-sm font-bold rounded transition-colors"
+            style={{ background: "var(--theme-accent)" }}
           >
             Add to Map
           </button>
@@ -243,7 +269,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
       {/* Token list */}
       <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
         {visibleTokens.length === 0 && (
-          <p className="text-xs text-gray-500 text-center mt-4">No tokens yet</p>
+          <p className="text-xs text-center mt-4" style={{ color: "var(--theme-text-muted)" }}>No tokens yet</p>
         )}
 
         {groups.map((group) => (
@@ -252,16 +278,19 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
             {showGroupHeaders && (
               <div className="flex items-center gap-2 pt-1 pb-0.5">
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: group.color }} />
-                <span className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
+                <span
+                  className="text-[10px] uppercase tracking-widest font-semibold"
+                  style={{ color: "var(--theme-text-muted)", fontFamily: "var(--theme-font-display)" }}
+                >
                   {group.label}
                 </span>
-                <div className="flex-1 h-px bg-gray-700/50" />
+                <div className="flex-1 h-px" style={{ background: "var(--theme-border)", opacity: 0.5 }} />
               </div>
             )}
 
             <div className="space-y-2">
               {group.tokens.map((token) => {
-                const hpRatio = Math.max(0, token.hp / token.max_hp);
+                const hpRatio = token.max_hp > 0 ? token.hp / token.max_hp : 0;
                 const mine = token.owner_id === userId || (isOwner && token.owner_id === null);
                 const controllable = canControl(token.owner_id);
                 const effectiveSize = token.size ?? session?.token_size ?? 56;
@@ -271,11 +300,13 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                 return (
                   <div
                     key={token.id}
-                    className={`rounded-xl p-2.5 space-y-1.5 border transition-colors ${mine ? "ring-1 ring-indigo-500" : ""} ${
-                      isHidden
-                        ? "bg-gray-900/60 border-dashed border-gray-700/60 opacity-75 hover:opacity-90"
-                        : "bg-gray-800/60 hover:bg-gray-800/90 border-gray-700/40"
-                    }`}
+                    className={`rounded-xl p-2.5 space-y-1.5 border transition-colors ${isHidden ? "opacity-75 hover:opacity-90" : ""}`}
+                    style={{
+                      background: isHidden ? "var(--theme-bg-surface)" : "var(--theme-bg-panel)",
+                      borderColor: "var(--theme-border)",
+                      borderStyle: isHidden ? "dashed" : "solid",
+                      ...(mine ? { outline: "1px solid var(--theme-accent)" } : {}),
+                    }}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0 flex-wrap">
@@ -292,7 +323,12 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                             <img src={token.image_url} alt="" className="w-full h-full object-cover" />
                           )}
                         </button>
-                        <span className="text-sm font-medium text-white truncate">{token.name}</span>
+                        <span
+                          className="text-sm font-medium truncate"
+                          style={{ color: "var(--theme-text-primary)" }}
+                        >
+                          {token.name}
+                        </span>
                         {mine && (
                           <span className="text-xs text-indigo-400 shrink-0">you</span>
                         )}
@@ -310,9 +346,10 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                             onClick={() => toggleVisible(token)}
                             className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
                               token.visible
-                                ? "text-gray-500 hover:text-white hover:bg-gray-700"
+                                ? "hover:bg-gray-700"
                                 : "text-yellow-400 bg-gray-700 hover:text-yellow-300"
                             }`}
+                            style={token.visible ? { color: "var(--theme-text-muted)" } : {}}
                             title={token.visible ? "Hide token from players" : "Show token to players"}
                           >
                             {token.visible ? "Hide" : "Show"}
@@ -321,7 +358,8 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                         {(isOwner || mine) && (
                           <button
                             onClick={() => removeToken(token.id)}
-                            className="text-gray-600 hover:text-red-400 text-xs transition-colors"
+                            className="text-xs transition-colors hover:text-red-400"
+                            style={{ color: "var(--theme-text-muted)" }}
                             title="Remove token from the map"
                           >
                             ✕
@@ -340,22 +378,47 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
 
                     {/* HP controls */}
                     {controllable ? (
-                      <div className="rounded-lg bg-gray-900/40 px-2 py-1.5 space-y-1.5">
-                        <div className="text-center">
-                          <div className="text-[9px] uppercase tracking-widest text-gray-500 font-semibold mb-0.5">Hit Points</div>
-                          <div className="text-xl font-bold tabular-nums text-gray-100 leading-none">
-                            {token.hp} <span className="text-xs text-gray-500 font-normal">/ {token.max_hp}</span>
+                      <div
+                        className="rounded-lg px-2 py-1.5 space-y-1.5"
+                        style={{ background: "var(--theme-bg-deep)" }}
+                      >
+                        {/* HP block */}
+                        <div>
+                          <div className="flex justify-between items-baseline mb-1">
+                            <span className="text-[0.48rem] uppercase tracking-[0.18em]"
+                              style={{ color: "var(--theme-text-muted)", fontFamily: "var(--theme-font-display)" }}>
+                              Hit Points
+                            </span>
+                            <span className="text-[0.58rem] font-semibold"
+                              style={{ color: hpRatio <= 0.25 ? "#f87171" : "var(--theme-text-primary)", fontFamily: "var(--theme-font-body)" }}>
+                              {token.hp} / {token.max_hp}
+                            </span>
+                          </div>
+                          {/* Thicker HP bar */}
+                          <div className="h-[5px] rounded-full overflow-hidden mb-1.5"
+                            style={{ background: "var(--theme-border)" }}>
+                            <div className="h-full rounded-full transition-all"
+                              style={{ width: `${hpRatio * 100}%`, background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444" }} />
+                          </div>
+                          {/* Adjust slider with label */}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[0.46rem] uppercase tracking-[0.1em] whitespace-nowrap"
+                              style={{ color: "var(--theme-text-muted)", fontFamily: "var(--theme-font-display)" }}>
+                              Adjust
+                            </span>
+                            <input type="range" min={0} max={token.max_hp} value={token.hp}
+                              className="flex-1 h-[3px] rounded-full cursor-pointer"
+                              style={{ accentColor: "var(--theme-accent)" }}
+                              onPointerUp={async (e) => {
+                                const newHp = Number((e.target as HTMLInputElement).value);
+                                upsertToken({ ...token, hp: newHp });
+                                await createClient().from("tokens").update({ hp: newHp }).eq("id", token.id);
+                              }}
+                            />
                           </div>
                         </div>
-                        <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${hpRatio * 100}%`,
-                              background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
-                            }}
-                          />
-                        </div>
+                        {/* Section divider */}
+                        <div className="h-px" style={{ background: "var(--theme-border)", opacity: 0.5 }} />
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] text-red-500 shrink-0">1</span>
@@ -366,11 +429,12 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                               value={hpAmount[token.id] ?? 1}
                               onChange={(e) => setHpAmount((prev) => ({ ...prev, [token.id]: Number(e.target.value) }))}
                               onClick={(e) => e.stopPropagation()}
-                              className="flex-1 h-1.5 accent-indigo-500 cursor-pointer"
+                              className="flex-1 h-1.5 cursor-pointer"
+                              style={{ accentColor: "var(--theme-accent)" }}
                             />
-                            <span className="text-[10px] text-gray-500 shrink-0">{token.max_hp}</span>
+                            <span className="text-[10px] shrink-0" style={{ color: "var(--theme-text-muted)" }}>{token.max_hp}</span>
                           </div>
-                          <div className="text-center text-xs text-indigo-300 font-semibold mt-0.5 tabular-nums">
+                          <div className="text-center text-xs font-semibold mt-0.5 tabular-nums text-indigo-300">
                             {hpAmount[token.id] ?? 1} hp
                           </div>
                         </div>
@@ -398,8 +462,11 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                         )}
                       </div>
                     ) : (
-                      <div className="rounded-lg bg-gray-900/40 px-2 py-1.5">
-                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className="rounded-lg px-2 py-1.5"
+                        style={{ background: "var(--theme-bg-deep)" }}
+                      >
+                        <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--theme-border)" }}>
                           <div
                             className="h-full rounded-full"
                             style={{
@@ -408,7 +475,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                             }}
                           />
                         </div>
-                        <div className="text-xs text-gray-500 text-center tabular-nums mt-0.5">
+                        <div className="text-xs text-center tabular-nums mt-0.5" style={{ color: "var(--theme-text-muted)" }}>
                           {token.hp} / {token.max_hp}
                         </div>
                       </div>
@@ -416,8 +483,16 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
 
                     {/* Size slider — token owner or DM */}
                     {controllable && (
-                      <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${token.size_locked ? "bg-gray-900/20" : "bg-gray-900/40"}`}>
-                        <span className={`text-xs shrink-0 ${token.size_locked ? "text-gray-600" : "text-gray-500"}`}>Size</span>
+                      <div
+                        className="flex items-center gap-2 rounded-lg px-2 py-1.5"
+                        style={{ background: token.size_locked ? "var(--theme-bg-surface)" : "var(--theme-bg-deep)" }}
+                      >
+                        <span
+                          className="text-xs shrink-0"
+                          style={{ color: token.size_locked ? "var(--theme-text-muted)" : "var(--theme-text-secondary)" }}
+                        >
+                          Size
+                        </span>
                         <input
                           type="range"
                           min={MIN_TOKEN_SIZE}
@@ -438,9 +513,13 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                             const supabase = createClient();
                             await supabase.from("tokens").update({ size: val }).eq("id", token.id);
                           }}
-                          className={`flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none accent-indigo-500 ${token.size_locked ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
+                          className={`flex-1 h-1.5 rounded-lg appearance-none ${token.size_locked ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
+                          style={{ accentColor: "var(--theme-accent)" }}
                         />
-                        <span className={`text-xs tabular-nums w-7 text-right shrink-0 ${token.size_locked ? "text-gray-600" : "text-gray-400"}`}>
+                        <span
+                          className="text-xs tabular-nums w-7 text-right shrink-0"
+                          style={{ color: token.size_locked ? "var(--theme-text-muted)" : "var(--theme-text-secondary)" }}
+                        >
                           {pendingSize[token.id] ?? effectiveSize}
                         </span>
                         {/* Lock toggle — DM only */}
