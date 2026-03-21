@@ -65,6 +65,16 @@ useEffect(() => { stageScaleRef.current = stageScale; }, [stageScale]);
 
 Always read `.current` inside event handlers, never the state variable directly. Add a new ref + sync effect whenever you add state that event handlers need to read.
 
+### Fog of war controls (lifted state)
+
+Fog tool selection (`fogTool: "reveal" | "hide" | null`) is owned by `SessionView` and passed as a controlled prop to `useFogPainting` (via `MapCanvas`). This allows the DM tab UI in the sidebar to control fog mode while the canvas still handles mouse events. The same lift pattern applies to `pendingTokenSize` and `tokenSizeScope` for the token size slider.
+
+```
+SessionView (owns fogTool state)
+  └─ MapCanvas (receives fogTool prop)
+       └─ useFogPainting (receives fogTool prop, syncs to ref for stale-closure safety)
+```
+
 ### Fog of war rendering
 
 The fog uses Konva layer compositing:
@@ -106,17 +116,16 @@ Tokens can display a portrait icon from the built-in library (`public/icons/`). 
 | `src/lib/useRealtimeSession.ts` | All Supabase Realtime subscriptions; returns broadcast helpers and `lockedBy` |
 | `src/lib/mapUtils.ts` | Map constants (`VIRTUAL_SIZE`, `SCALE_BY`, `MIN/MAX_SCALE`, etc.) and `clampStagePos` |
 | `src/lib/useImageSize.ts` | Hook that returns `{width, height}` for a given image URL |
-| `src/components/map/MapCanvas.tsx` | Konva Stage orchestrator — zoom, pan, fog painting. ~230 lines. |
+| `src/components/map/MapCanvas.tsx` | Konva Stage orchestrator — zoom, pan, fog painting. Accepts `fogTool`, `pendingTokenSize`, `tokenSizeScope` as props from SessionView. |
 | `src/components/map/TokenShape.tsx` | Single token shape with drag, HP bar, portrait icon rendering |
 | `src/components/map/FogLayer.tsx` | `FogLayer`, `FogAdminOverlay`, `FogPreviewOutline` exports |
-| `src/components/map/FogToolbar.tsx` | HTML overlay for fog controls (top-left corner) |
-| `src/components/map/MapControls.tsx` | HTML overlay for zoom + token size (bottom-right corner) |
+| `src/components/map/MapControls.tsx` | HTML overlay for zoom in/out/reset — draggable, hidable (✕ to collapse, 🔍 to restore) |
 | `src/components/session/TokenPanel.tsx` | Sidebar token list: add, visibility toggle, delete, per-token size, icon picker |
 | `src/components/session/IconPicker.tsx` | Inline icon picker with category tabs and thumbnail grid |
 | `src/lib/icons.ts` | Icon manifest — `ICONS[]`, `ICON_CATEGORIES`, `getIconsByCategory()` |
 | `public/icons/` | Static portrait PNGs organized by category (animals/creatures/fantasy/humans) |
 | `src/app/page.tsx` | Lobby — identity (name + color), two-column Create / Join grid, slate dark theme |
-| `src/app/session/[id]/SessionView.tsx` | Client shell: tabbed sidebar (Session/Tokens/Dice), map upload, fog toolbar, end session |
+| `src/app/session/[id]/SessionView.tsx` | Client shell: tabbed sidebar (👑 Dungeon Master / Tokens / Dice), lifted fog/size state, end session |
 | `supabase/schema.sql` | Base schema — run this first on a new project |
 | `supabase/migrations/` | Incremental changes — apply in order (001 → 010) after schema.sql |
 

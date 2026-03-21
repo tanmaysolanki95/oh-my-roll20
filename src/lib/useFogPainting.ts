@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { createClient } from "@/lib/supabase/client";
 import { useSessionStore } from "@/store/session";
 import type { FogShape } from "@/types";
 
@@ -12,50 +11,34 @@ interface UseFogPaintingOptions {
   stageScaleRef: { current: number };
   stagePosRef: { current: { x: number; y: number } };
   isOwner: boolean;
+  /** Controlled from outside — SessionView owns the active tool selection */
+  fogTool: "reveal" | "hide" | null;
 }
 
-export function useFogPainting({ stageRef, stageScaleRef, stagePosRef, isOwner }: UseFogPaintingOptions) {
+export function useFogPainting({ stageRef, stageScaleRef, stagePosRef, isOwner, fogTool }: UseFogPaintingOptions) {
   const { setSession } = useSessionStore();
 
-  const [fogTool, setFogToolState] = useState<"reveal" | "hide" | null>(null);
-  const fogToolRef = useRef<"reveal" | "hide" | null>(null);
+  // Ref mirror so mouse event handlers (registered once) always see the latest value
+  const fogToolRef = useRef<"reveal" | "hide" | null>(fogTool);
+  useEffect(() => { fogToolRef.current = fogTool; }, [fogTool]);
+
   const [fogPreview, setFogPreview] = useState<FogShape | null>(null);
   const isFogPainting = useRef(false);
   const fogPaintStart = useRef<{ x: number; y: number } | null>(null);
 
-  const activateFogTool = (tool: "reveal" | "hide" | null) => {
-    setFogToolState(tool);
-    fogToolRef.current = tool;
-  };
-
-  // Cursor: crosshair when fog tool is active
+  // Cursor: crosshair when a fog tool is active
   useEffect(() => {
     const container = stageRef.current?.container();
     if (container) container.style.cursor = fogTool ? "crosshair" : "";
   }, [fogTool, stageRef]);
-
-  const toggleFog = async () => {
-    const s = useSessionStore.getState().session;
-    if (!s) return;
-    const enabled = !s.fog_enabled;
-    setSession({ ...s, fog_enabled: enabled });
-    if (!enabled) activateFogTool(null);
-    await createClient().from("sessions").update({ fog_enabled: enabled }).eq("id", s.id);
-  };
 
   const commitFogShape = async (shape: FogShape) => {
     const s = useSessionStore.getState().session;
     if (!s) return;
     const shapes = [...(s.fog_shapes ?? []), shape];
     setSession({ ...s, fog_shapes: shapes });
+    const { createClient } = await import("@/lib/supabase/client");
     await createClient().from("sessions").update({ fog_shapes: shapes }).eq("id", s.id);
-  };
-
-  const clearFog = async () => {
-    const s = useSessionStore.getState().session;
-    if (!s) return;
-    setSession({ ...s, fog_shapes: [] });
-    await createClient().from("sessions").update({ fog_shapes: [] }).eq("id", s.id);
   };
 
   /** Returns true if fog consumed the event (caller should skip pan logic). */
@@ -68,7 +51,7 @@ export function useFogPainting({ stageRef, stageScaleRef, stagePosRef, isOwner }
     isFogPainting.current = true;
     fogPaintStart.current = { x: wx, y: wy };
     setFogPreview({ x: wx, y: wy, w: 0, h: 0, type: fogToolRef.current });
-    void e; // consumed
+    void e;
     return true;
   };
 
@@ -118,13 +101,7 @@ export function useFogPainting({ stageRef, stageScaleRef, stagePosRef, isOwner }
   };
 
   return {
-    fogTool,
     fogPreview,
-    fogToolRef,
-    isFogPaintingRef: isFogPainting,
-    activateFogTool,
-    toggleFog,
-    clearFog,
     stageMouseDown,
     stageMouseMove,
     stageMouseUp,

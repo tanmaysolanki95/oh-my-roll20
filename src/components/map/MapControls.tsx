@@ -1,102 +1,93 @@
-import type { Session } from "@/types";
-import { MIN_TOKEN_SIZE, MAX_TOKEN_SIZE } from "@/lib/mapUtils";
-
-type TokenSizeScope = "all" | "players";
+import { useState } from "react";
 
 interface MapControlsProps {
-  isOwner: boolean;
-  session: Session | null;
   stageScale: number;
-  pendingTokenSize: number | null;
-  tokenSizeScope: TokenSizeScope;
-  onPendingTokenSize: (v: number | null) => void;
-  onTokenSizeScope: (s: TokenSizeScope) => void;
-  onTokenSizeCommit: (newSize: number) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
 }
 
-export default function MapControls({
-  isOwner, session, stageScale,
-  pendingTokenSize, tokenSizeScope,
-  onPendingTokenSize, onTokenSizeScope, onTokenSizeCommit,
-  onZoomIn, onZoomOut, onResetView,
-}: MapControlsProps) {
-  const tokenSize = session?.token_size ?? 56;
+export default function MapControls({ stageScale, onZoomIn, onZoomOut, onResetView }: MapControlsProps) {
+  const [pos, setPos] = useState({ x: 12, y: -1 }); // -1 = anchor to bottom
+  const [hidden, setHidden] = useState(false);
+
+  const startDrag = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX - pos.x;
+    const startY = e.clientY - pos.y;
+    const onMove = (ev: PointerEvent) => setPos({ x: ev.clientX - startX, y: ev.clientY - startY });
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
+  const style: React.CSSProperties = pos.y === -1
+    ? { left: pos.x, bottom: 12 }
+    : { left: pos.x, top: pos.y };
+
+  if (hidden) {
+    return (
+      <button
+        className="absolute flex items-center justify-center w-8 h-8 bg-gray-950/90 backdrop-blur-md border border-white/10 rounded-lg shadow-lg shadow-black/50 text-gray-400 hover:text-white transition-colors text-sm font-bold tabular-nums"
+        style={style}
+        onPointerDown={startDrag}
+        onClick={() => setHidden(false)}
+        title="Show zoom controls"
+      >
+        🔍
+      </button>
+    );
+  }
 
   return (
-    <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-gray-950/90 backdrop-blur-md border border-white/10 rounded-lg px-3 py-2 shadow-lg shadow-black/50">
-      {/* Token size — DM only */}
-      {isOwner && session && (
-        <>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-gray-400 shrink-0">Token</span>
-
-            {/* Scope toggle */}
-            <div className="flex rounded overflow-hidden border border-gray-700 text-xs">
-              {(["all", "players"] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => onTokenSizeScope(s)}
-                  className={`px-1.5 py-0.5 capitalize transition-colors ${
-                    tokenSizeScope === s
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                  }`}
-                  title={s === "all" ? "Resize all tokens" : "Resize player-owned tokens only"}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => onTokenSizeCommit(Math.max(MIN_TOKEN_SIZE, tokenSize - 4))}
-              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-700 text-sm transition-colors"
-            >−</button>
-            <input
-              type="range"
-              min={MIN_TOKEN_SIZE}
-              max={MAX_TOKEN_SIZE}
-              value={pendingTokenSize ?? tokenSize}
-              onChange={(e) => onPendingTokenSize(Number(e.target.value))}
-              onPointerUp={() => {
-                if (pendingTokenSize === null) return;
-                onTokenSizeCommit(pendingTokenSize);
-                onPendingTokenSize(null);
-              }}
-              className="w-20 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-            />
-            <button
-              onClick={() => onTokenSizeCommit(Math.min(MAX_TOKEN_SIZE, tokenSize + 4))}
-              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-700 text-sm transition-colors"
-            >+</button>
+    <div
+      className="absolute flex items-center gap-1 bg-gray-950/90 backdrop-blur-md border border-white/10 rounded-lg px-2 py-1.5 shadow-lg shadow-black/50 select-none"
+      style={style}
+    >
+      {/* Drag handle */}
+      <div
+        className="flex flex-col gap-0.5 px-0.5 cursor-grab active:cursor-grabbing shrink-0"
+        onPointerDown={startDrag}
+        title="Drag to move"
+      >
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex gap-0.5">
+            <div className="w-0.5 h-0.5 rounded-full bg-gray-600" />
+            <div className="w-0.5 h-0.5 rounded-full bg-gray-600" />
           </div>
-          <div className="w-px h-6 bg-gray-700" />
-        </>
-      )}
-
-      {/* Zoom controls */}
-      <div className="flex items-center gap-1">
-        <button
-          onClick={onZoomOut}
-          className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-700 text-base transition-colors"
-          title="Zoom out (scroll down)"
-        >−</button>
-        <button
-          onClick={onResetView}
-          className="text-xs text-gray-400 hover:text-white transition-colors w-12 text-center tabular-nums"
-          title="Fit map to screen"
-        >
-          {Math.round(stageScale * 100)}%
-        </button>
-        <button
-          onClick={onZoomIn}
-          className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-700 text-base transition-colors"
-          title="Zoom in (scroll up)"
-        >+</button>
+        ))}
       </div>
+
+      <div className="w-px h-4 bg-gray-700 shrink-0" />
+
+      <button
+        onClick={onZoomOut}
+        className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-700 text-base transition-colors"
+        title="Zoom out (scroll down)"
+      >−</button>
+      <button
+        onClick={onResetView}
+        className="text-xs text-gray-400 hover:text-white transition-colors w-10 text-center tabular-nums"
+        title="Fit map to screen"
+      >
+        {Math.round(stageScale * 100)}%
+      </button>
+      <button
+        onClick={onZoomIn}
+        className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-700 text-base transition-colors"
+        title="Zoom in (scroll up)"
+      >+</button>
+
+      <div className="w-px h-4 bg-gray-700 shrink-0" />
+
+      <button
+        onClick={() => setHidden(true)}
+        className="text-xs text-gray-600 hover:text-gray-300 transition-colors px-0.5"
+        title="Hide zoom controls"
+      >✕</button>
     </div>
   );
 }

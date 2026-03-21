@@ -19,7 +19,8 @@ A lightweight virtual tabletop (VTT) for D&D sessions with friends. Built to be 
 - **Join codes** — short 6-character uppercase codes (e.g. `A3F2B9`) so players can join without a raw UUID URL
 - **Session ending** — DM can end a session and immediately redirect all connected players to the lobby
 - **Dice roller** — full expression parser (`3d20+10`, `2d6-1`, etc.) with a shared roll log; natural 20/1 callouts; violet accent theme
-- **Tabbed sidebar** — Session / Tokens / Dice tabs with a resizable sidebar; DM controls (invite code, map upload, token limit, grid size) live in the Session tab with clear descriptions
+- **Tabbed sidebar** — 👑 Dungeon Master / Tokens / Dice tabs with a resizable sidebar; all DM controls (invite code, map upload, fog of war, token size, token limit, grid size) live in the DM tab with clear descriptions
+- **Movable zoom controls** — zoom in/out/reset widget is draggable and hidable, so it never blocks the map
 - **Real-time** — all state syncs across all connected clients in ~100ms
 - **d20 logo** — fantasy-themed SVG icon in a glowing rounded square on the lobby; also shown in the browser tab
 - **Lobby** — slate dark background, d20 hero icon, identity (name + color) above a two-column Create / Join grid
@@ -178,14 +179,13 @@ src/
     page.tsx                  # Lobby (create / join session by code)
     session/[id]/
       page.tsx                # Server component — fetches session, renders SessionView
-      SessionView.tsx         # Client shell — tabbed sidebar (Session/Tokens/Dice), map upload, realtime, end session
+      SessionView.tsx         # Client shell — tabbed sidebar (DM/Tokens/Dice), lifted fog/size state, realtime, end session
   components/
     map/
       MapCanvas.tsx           # Konva stage orchestrator — zoom, pan, fog painting
       TokenShape.tsx          # Single token: circle, portrait icon, HP bar
       FogLayer.tsx            # FogLayer (player/admin fog), FogAdminOverlay, FogPreviewOutline
-      FogToolbar.tsx          # HTML overlay: fog on/off, reveal area, hide area, reset all
-      MapControls.tsx         # HTML overlay: zoom in/out/reset, token size slider
+      MapControls.tsx         # HTML overlay: zoom in/out/reset — movable, hidable
     dice/DiceRoller.tsx       # Expression input + quick buttons + roll log
     session/
       TokenPanel.tsx          # Sidebar: add token, visibility toggle, delete, per-token size, icon picker

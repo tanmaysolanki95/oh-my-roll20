@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo } from "react";
+import { useRef, useMemo } from "react";
 import { Stage, Layer, Image as KonvaImage, Line, Rect } from "react-konva";
 import useImage from "use-image";
 import { createClient } from "@/lib/supabase/client";
@@ -12,7 +12,6 @@ import { useMapZoom } from "@/lib/useMapZoom";
 import { useFogPainting } from "@/lib/useFogPainting";
 import TokenShape from "./TokenShape";
 import { FogLayer, FogAdminOverlay, FogPreviewOutline } from "./FogLayer";
-import FogToolbar from "./FogToolbar";
 import MapControls from "./MapControls";
 
 interface MapCanvasProps {
@@ -21,6 +20,12 @@ interface MapCanvasProps {
   broadcastTokenDragStart: (token_id: string) => void;
   broadcastTokenDragEnd: (token_id: string) => void;
   lockedBy: Record<string, string>;
+  /** Fog tool controlled by SessionView (DM tab) */
+  fogTool: "reveal" | "hide" | null;
+  /** Token size preview: non-null while DM is dragging the session size slider */
+  pendingTokenSize: number | null;
+  /** Which tokens the session-level size slider affects */
+  tokenSizeScope: "all" | "players";
 }
 
 function MapBackground({ url, width, height }: { url: string; width: number; height: number }) {
@@ -28,10 +33,13 @@ function MapBackground({ url, width, height }: { url: string; width: number; hei
   return <KonvaImage name="background" image={image} width={width} height={height} />;
 }
 
-export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart, broadcastTokenDragEnd, lockedBy }: MapCanvasProps) {
+export default function MapCanvas({
+  broadcastTokenMove, broadcastTokenDragStart, broadcastTokenDragEnd,
+  lockedBy, fogTool, pendingTokenSize, tokenSizeScope,
+}: MapCanvasProps) {
   useAuth();
 
-  const { session, tokens, updateTokenPosition, setSession, upsertToken, userId } = useSessionStore();
+  const { session, tokens, updateTokenPosition, upsertToken, userId } = useSessionStore();
   const isOwner = !!userId && session?.owner_id === userId;
   const canControl = (tokenOwnerId: string | null) => isOwner || tokenOwnerId === userId;
 
@@ -45,6 +53,7 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
     stageScaleRef: zoom.stageScaleRef,
     stagePosRef: zoom.stagePosRef,
     isOwner,
+    fogTool,
   });
 
   // Panning
@@ -52,11 +61,6 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
   const panStart = useRef({ x: 0, y: 0 });
   const panOrigin = useRef({ x: 0, y: 0 });
 
-  // Token size override for DM controls
-  const [pendingTokenSize, setPendingTokenSize] = useState<number | null>(null);
-  const [tokenSizeScope, setTokenSizeScope] = useState<"all" | "players">("all");
-
-  // Token handlers
   const handleDragMove = (id: string, x: number, y: number) => {
     broadcastTokenMove(id, x, y);
   };
@@ -67,25 +71,7 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
     await createClient().from("tokens").update({ x, y }).eq("id", id);
   };
 
-  const handleTokenSizeCommit = async (newSize: number) => {
-    const s = useSessionStore.getState().session;
-    if (!s) return;
-    setSession({ ...s, token_size: newSize });
-    const supabase = createClient();
-    const currentTokens = useSessionStore.getState().tokens;
-    const inScope = (t: { owner_id: string | null }) =>
-      tokenSizeScope === "all" || t.owner_id !== null;
-    currentTokens.filter(inScope).forEach(t => upsertToken({ ...t, size: newSize }));
-    const tokenQuery = supabase.from("tokens").update({ size: newSize }).eq("session_id", s.id);
-    await Promise.all([
-      supabase.from("sessions").update({ token_size: newSize }).eq("id", s.id),
-      tokenSizeScope === "all"
-        ? tokenQuery
-        : tokenQuery.not("owner_id", "is", null),
-    ]);
-  };
-
-  // Grid lines (memoized — only recompute when grid dimensions change)
+  // Grid lines (memoized)
   const gridSize = session?.grid_size ?? 60;
   const gridWidth = mapUrl && imageSize.width > 0 ? imageSize.width : VIRTUAL_SIZE;
   const gridHeight = mapUrl && imageSize.height > 0 ? imageSize.height : VIRTUAL_SIZE;
@@ -192,25 +178,9 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
         )}
       </Stage>
 
-      {/* HTML overlays */}
-      {isOwner && (
-        <FogToolbar
-          fogEnabled={session?.fog_enabled ?? false}
-          fogTool={fog.fogTool}
-          onToggleFog={fog.toggleFog}
-          onActivateTool={fog.activateFogTool}
-          onClearFog={fog.clearFog}
-        />
-      )}
+      {/* Zoom controls — movable & hidable */}
       <MapControls
-        isOwner={isOwner}
-        session={session}
         stageScale={zoom.stageScale}
-        pendingTokenSize={pendingTokenSize}
-        tokenSizeScope={tokenSizeScope}
-        onPendingTokenSize={setPendingTokenSize}
-        onTokenSizeScope={setTokenSizeScope}
-        onTokenSizeCommit={handleTokenSizeCommit}
         onZoomIn={() => zoom.zoomBy(SCALE_BY)}
         onZoomOut={() => zoom.zoomBy(1 / SCALE_BY)}
         onResetView={zoom.resetView}
