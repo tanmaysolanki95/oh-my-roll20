@@ -39,7 +39,7 @@ export default function MapCanvas({
 }: MapCanvasProps) {
   useAuth();
 
-  const { session, tokens, updateTokenPosition, upsertToken, userId } = useSessionStore();
+  const { session, tokens, updateTokenPosition, userId } = useSessionStore();
   const isOwner = !!userId && session?.owner_id === userId;
   const canControl = (tokenOwnerId: string | null) => isOwner || tokenOwnerId === userId;
 
