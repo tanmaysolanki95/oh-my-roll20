@@ -13,6 +13,7 @@ import TokenPanel from "@/components/session/TokenPanel";
 import DiceRoller from "@/components/dice/DiceRoller";
 import DiceToast from "@/components/dice/DiceToast";
 import { MIN_TOKEN_SIZE, MAX_TOKEN_SIZE } from "@/lib/mapUtils";
+import { getThemeTokens } from "@/lib/themeTokens";
 import type { Session } from "@/types";
 
 const PLAYER_COLORS = [
@@ -61,6 +62,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
   const router = useRouter();
   const isOwner = !!userId && session?.owner_id === userId;
+  const themeTokens = getThemeTokens(session?.theme ?? "grimoire");
 
   // Force fog tool off when the DM hits the 50-operation cap
   const fogAtLimitRef = useRef(false);
@@ -71,6 +73,13 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   }, [session?.fog_history]);
 
   useEffect(() => { setSession(initialSession); }, [initialSession, setSession]);
+
+  // Apply theme to <body> whenever session.theme changes; reset on unmount
+  useEffect(() => {
+    const theme = session?.theme ?? "grimoire";
+    document.body.setAttribute("data-theme", theme);
+    return () => { document.body.setAttribute("data-theme", "grimoire"); };
+  }, [session?.theme]);
 
   // ── DM actions ────────────────────────────────────────────────────────────
 
@@ -289,6 +298,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
             fogTool={fogTool}
             pendingTokenSize={pendingTokenSize}
             tokenSizeScope={tokenSizeScope}
+            themeTokens={themeTokens}
           />
         </div>
 
@@ -361,6 +371,40 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                   {mapError && <p className="text-xs text-red-400 mt-1.5">{mapError}</p>}
                   {session?.map_url && !mapUploading && <p className="text-[11px] text-gray-600 mt-1.5">Map loaded ✓</p>}
                 </div>
+
+                {/* Theme switcher */}
+                {isOwner && (
+                  <div className="bg-[var(--theme-bg-panel)] border border-[var(--theme-border)] rounded-xl p-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--theme-text-secondary)] mb-2"
+                         style={{ fontFamily: "var(--theme-font-display)" }}>
+                      Realm Theme
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(["grimoire", "scroll", "neon"] as const).map((t) => {
+                        const labels = { grimoire: "💀 Grimoire", scroll: "📜 Scroll", neon: "🔮 Arcane" };
+                        const active = (session?.theme ?? "grimoire") === t;
+                        return (
+                          <button
+                            key={t}
+                            onClick={async () => {
+                              if (!session) return;
+                              setSession({ ...session, theme: t });
+                              await createClient().from("sessions").update({ theme: t }).eq("id", sessionId);
+                            }}
+                            className={`rounded-lg py-1.5 px-1 text-[10px] font-semibold border transition-all
+                              ${active
+                                ? "bg-[var(--theme-accent-dim)]/20 border-[var(--theme-accent)] text-[var(--theme-text-primary)] shadow-[0_0_8px_var(--theme-accent-glow)]"
+                                : "bg-[var(--theme-bg-deep)] border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)]"
+                              }`}
+                            style={{ fontFamily: "var(--theme-font-display)" }}
+                          >
+                            {labels[t]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Fog of war */}
                 <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
