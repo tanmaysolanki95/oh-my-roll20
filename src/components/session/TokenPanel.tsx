@@ -434,6 +434,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                             if (token.size_locked) return;
                             const val = Number((e.target as HTMLInputElement).value);
                             setPendingSize((prev) => { const next = { ...prev }; delete next[token.id]; return next; });
+                            upsertToken({ ...token, size: val });
                             const supabase = createClient();
                             await supabase.from("tokens").update({ size: val }).eq("id", token.id);
                           }}
