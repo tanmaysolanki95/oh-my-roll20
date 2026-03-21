@@ -430,12 +430,12 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                             setPendingSize((prev) => ({ ...prev, [token.id]: val }));
                             upsertToken({ ...token, size: val });
                           }}
-                          onPointerUp={(e) => {
+                          onPointerUp={async (e) => {
                             if (token.size_locked) return;
                             const val = Number((e.target as HTMLInputElement).value);
                             setPendingSize((prev) => { const next = { ...prev }; delete next[token.id]; return next; });
                             const supabase = createClient();
-                            supabase.from("tokens").update({ size: val }).eq("id", token.id);
+                            await supabase.from("tokens").update({ size: val }).eq("id", token.id);
                           }}
                           className={`flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none accent-indigo-500 ${token.size_locked ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
                         />
