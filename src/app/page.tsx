@@ -90,7 +90,7 @@ export default function Home() {
           </div>
           <div>
             <h1 className="text-3xl font-black tracking-tight text-white">oh-my-roll20</h1>
-            <p className="text-slate-500 text-sm mt-1">Virtual tabletop for D&amp;D</p>
+            <p className="text-slate-500 text-sm mt-1">A VTT for friends, by friends</p>
           </div>
         </div>
 
