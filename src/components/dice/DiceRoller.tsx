@@ -84,12 +84,18 @@ export default function DiceRoller({ sessionId, onCollapse, broadcastDiceRoll }:
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <span className="text-base">🎲</span>
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Dice</span>
+          <span
+            className="text-xs font-semibold uppercase tracking-wider"
+            style={{ color: "var(--theme-text-secondary)", fontFamily: "var(--theme-font-display)" }}
+          >
+            Dice
+          </span>
         </div>
         {onCollapse && (
           <button
             onClick={onCollapse}
-            className="text-gray-600 hover:text-gray-300 text-xs px-1 transition-colors"
+            className="text-xs px-1 transition-colors"
+            style={{ color: "var(--theme-text-muted)" }}
             title="Collapse dice roller"
           >
             ▲
@@ -103,11 +109,21 @@ export default function DiceRoller({ sessionId, onCollapse, broadcastDiceRoll }:
           <button
             key={sides}
             onClick={() => roll(`1d${sides}`)}
-            className={`py-1.5 text-[10px] font-bold rounded transition-all ${
+            className="py-1.5 text-[10px] font-bold rounded transition-all"
+            style={
               sides === 20
-                ? "bg-violet-800 hover:bg-violet-700 text-white shadow-[0_0_8px_rgba(124,58,237,0.5)]"
-                : "bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700"
-            }`}
+                ? {
+                    background: "var(--theme-accent)",
+                    color: "var(--theme-text-primary)",
+                    boxShadow: "0 0 8px var(--theme-accent-glow)",
+                    border: "1px solid var(--theme-border-accent)",
+                  }
+                : {
+                    background: "var(--theme-bg-panel)",
+                    color: "var(--theme-text-primary)",
+                    border: "1px solid var(--theme-border)",
+                  }
+            }
           >
             d{sides === 100 ? "%" : sides}
           </button>
@@ -122,11 +138,23 @@ export default function DiceRoller({ sessionId, onCollapse, broadcastDiceRoll }:
           onChange={(e) => setExpr(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && roll(expr)}
           placeholder="e.g. 3d20+10"
-          className="flex-1 bg-gray-800 text-white text-sm px-3 py-1.5 rounded-lg border border-gray-700 focus:outline-none focus:border-violet-500 font-mono"
+          className="flex-1 text-sm px-3 py-1.5 rounded-lg focus:outline-none font-mono"
+          style={{
+            background: "var(--theme-bg-panel)",
+            color: "var(--theme-text-primary)",
+            border: "1px solid var(--theme-border)",
+          }}
+          onFocus={(e) => (e.currentTarget.style.borderColor = "var(--theme-border-accent)")}
+          onBlur={(e) => (e.currentTarget.style.borderColor = "var(--theme-border)")}
         />
         <button
           onClick={() => roll(expr)}
-          className="px-3 py-1.5 bg-violet-700 hover:bg-violet-600 text-white text-sm font-bold rounded-lg transition-colors shadow-[0_0_10px_rgba(124,58,237,0.4)]"
+          className="px-3 py-1.5 text-sm font-bold rounded-lg transition-colors"
+          style={{
+            background: "linear-gradient(135deg, var(--theme-accent-dim), var(--theme-accent))",
+            color: "var(--theme-text-primary)",
+            boxShadow: "0 0 10px var(--theme-accent-glow)",
+          }}
           title="Roll dice — result is shared with all players in the session"
         >
           Roll
@@ -137,41 +165,69 @@ export default function DiceRoller({ sessionId, onCollapse, broadcastDiceRoll }:
 
       {/* Last result callout */}
       {lastResult && (
-        <div className="rounded-xl border border-violet-900 bg-[#0d0d18] px-3 py-3 text-center shadow-[0_0_24px_rgba(124,58,237,0.2)]">
+        <div
+          className="rounded-xl px-3 py-3 text-center"
+          style={{
+            border: "1px solid var(--theme-border-accent)",
+            background: "var(--theme-bg-deep)",
+            boxShadow: "0 0 24px var(--theme-accent-glow)",
+          }}
+        >
           <div
-            className="text-5xl font-black text-white leading-none tabular-nums"
-            style={{ textShadow: isNatMax ? "0 0 24px rgba(167,139,250,0.8)" : undefined }}
+            className="text-5xl font-black leading-none tabular-nums"
+            style={{
+              color: "var(--theme-text-primary)",
+              textShadow: isNatMax ? "0 0 20px var(--theme-accent-glow)" : undefined,
+            }}
           >
             {lastResult.result}
           </div>
           {isNatMax && (
-            <div className="text-[10px] font-bold text-violet-400 tracking-widest uppercase mt-1">
+            <div className="text-[10px] font-bold text-yellow-300 tracking-widest uppercase mt-1">
               Natural {lastResult.sides} ✨
             </div>
           )}
           {isNatMin && !isNatMax && (
-            <div className="text-[10px] font-bold text-red-500 tracking-widest uppercase mt-1">
+            <div className="text-[10px] font-bold text-red-400 tracking-widest uppercase mt-1">
               Natural 1 💀
             </div>
           )}
-          <div className="text-xs text-gray-500 mt-1 font-mono">{lastResult.breakdown}</div>
-          <div className="text-xs text-violet-800 font-mono">{lastResult.expression}</div>
+          <div className="text-xs mt-1 font-mono" style={{ color: "var(--theme-text-secondary)" }}>
+            {lastResult.breakdown}
+          </div>
+          <div className="text-xs font-mono" style={{ color: "var(--theme-text-muted)" }}>
+            {lastResult.expression}
+          </div>
         </div>
       )}
 
       {/* Roll log */}
-      <div className="flex-1 overflow-y-auto min-h-0 space-y-0 divide-y divide-gray-800">
+      <div
+        className="flex-1 overflow-y-auto min-h-0 space-y-0 divide-y"
+        style={{ borderColor: "var(--theme-border)" }}
+      >
         {diceLog.map((r) => (
-          <div key={r.id} className="flex items-center gap-2 text-xs py-1.5 px-0.5">
-            <span className="min-w-[22px] text-right font-bold tabular-nums text-violet-400 shrink-0">
+          <div
+            key={r.id}
+            className="flex items-center gap-2 text-xs py-1.5 px-0.5"
+            style={{ borderColor: "var(--theme-border)" }}
+          >
+            <span
+              className="min-w-[22px] text-right font-bold tabular-nums shrink-0"
+              style={{ color: "var(--theme-accent)" }}
+            >
               {r.result}
             </span>
-            <span className="flex-1 text-gray-500 truncate">
-              <span className="text-gray-200 font-medium">{r.player_name}</span>
+            <span className="flex-1 truncate" style={{ color: "var(--theme-text-secondary)" }}>
+              <span className="font-medium" style={{ color: "var(--theme-text-primary)" }}>
+                {r.player_name}
+              </span>
               {" · "}
               {r.expression}
             </span>
-            <span className="text-gray-700 text-[10px] shrink-0">{relativeTime(r.created_at)}</span>
+            <span className="text-[10px] shrink-0" style={{ color: "var(--theme-text-muted)" }}>
+              {relativeTime(r.created_at)}
+            </span>
           </div>
         ))}
       </div>

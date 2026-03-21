@@ -46,35 +46,51 @@ export default function DiceToast() {
         visible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
       }`}
     >
-      <div className="bg-gray-900/85 backdrop-blur-sm rounded-2xl border border-gray-700/60 px-4 py-3 shadow-xl">
+      <div
+        className="rounded-2xl px-4 py-3 shadow-xl"
+        style={{
+          background: "var(--theme-bg-surface)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid var(--theme-border)",
+        }}
+      >
         {/* Top row: player + expression */}
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-gray-400 font-medium truncate">{roll.player_name}</span>
-          <span className="text-xs text-gray-500 font-mono ml-2 shrink-0">{roll.expression}</span>
+          <span className="text-xs font-medium truncate" style={{ color: "var(--theme-text-secondary)" }}>
+            {roll.player_name}
+          </span>
+          <span className="text-xs font-mono ml-2 shrink-0" style={{ color: "var(--theme-text-muted)" }}>
+            {roll.expression}
+          </span>
         </div>
 
         {/* Result */}
         <div
-          className={`text-2xl font-black tabular-nums leading-none ${isNatMin ? "text-red-400" : "text-white"}`}
-          style={isNatMax ? { textShadow: "0 0 16px rgba(167,139,250,0.8)" } : undefined}
+          className="text-2xl font-black tabular-nums leading-none"
+          style={{
+            color: isNatMin ? "#f87171" : "var(--theme-text-primary)",
+            textShadow: isNatMax ? "0 0 20px var(--theme-accent-glow)" : undefined,
+          }}
         >
           {roll.result}
         </div>
 
         {/* Nat label */}
         {isNatMax && (
-          <div className="text-[10px] font-bold text-violet-400 tracking-widest uppercase mt-0.5">
+          <div className="text-[10px] font-bold text-yellow-300 tracking-widest uppercase mt-0.5">
             Natural {parsed!.sides} ✨
           </div>
         )}
         {isNatMin && (
-          <div className="text-[10px] font-bold text-red-500 tracking-widest uppercase mt-0.5">
+          <div className="text-[10px] font-bold text-red-400 tracking-widest uppercase mt-0.5">
             Natural 1 💀
           </div>
         )}
 
         {/* Breakdown */}
-        <div className="text-xs text-gray-600 font-mono mt-1">{roll.breakdown}</div>
+        <div className="text-xs font-mono mt-1" style={{ color: "var(--theme-text-muted)" }}>
+          {roll.breakdown}
+        </div>
       </div>
     </div>
   );
