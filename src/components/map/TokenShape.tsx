@@ -17,6 +17,7 @@ export interface TokenShapeProps {
   onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
   onDragStart: (id: string) => void;
+  tokenRing: string;
 }
 
 function TokenPortrait({ src, radius }: { src: string; radius: number }) {
@@ -39,7 +40,7 @@ function TokenPortrait({ src, radius }: { src: string; radius: number }) {
 
 export default function TokenShape({
   token, draggable, opacity, tokenSize,
-  imageBounds, stageRef, onDragMove, onDragEnd, onDragStart,
+  imageBounds, stageRef, onDragMove, onDragEnd, onDragStart, tokenRing,
 }: TokenShapeProps) {
   const hpRatio = Math.max(0, token.hp / token.max_hp);
   const radius = tokenSize / 2;
@@ -87,7 +88,7 @@ export default function TokenShape({
       <Circle
         radius={radius}
         fill={token.color}
-        stroke="white"
+        stroke={tokenRing}
         strokeWidth={3}
         shadowBlur={8}
         shadowColor="black"
