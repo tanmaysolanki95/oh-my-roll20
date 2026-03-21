@@ -33,11 +33,12 @@ export default function Home() {
   }, [playerName, playerColor]);
 
   const saveIdentity = () => {
-    setPlayerName(nameInput || "Adventurer");
+    setPlayerName(nameInput.trim());
     setPlayerColor(colorPick);
   };
 
   const createSession = async () => {
+    if (!nameInput.trim()) { setError("Please enter your name first."); return; }
     if (!sessionName.trim()) { setError("Session name required"); return; }
     setLoading(true);
     setError("");
@@ -66,6 +67,7 @@ export default function Home() {
   };
 
   const joinSession = async () => {
+    if (!nameInput.trim()) { setError("Please enter your name first."); return; }
     if (!joinCode.trim()) { setError("Session code required"); return; }
     setLoading(true);
     setError("");

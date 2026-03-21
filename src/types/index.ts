@@ -33,6 +33,7 @@ export interface Token {
   image_url: string | null;
   owner_id: string | null; // null = unclaimed; set when a player claims the token
   size: number | null;     // null = inherit session token_size
+  size_locked: boolean;    // true = excluded from DM batch resize
   visible: boolean;        // false = hidden from non-admin players
 }
 

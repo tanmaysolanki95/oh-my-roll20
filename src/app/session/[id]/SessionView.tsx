@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeSession } from "@/lib/useRealtimeSession";
@@ -13,6 +13,11 @@ import TokenPanel from "@/components/session/TokenPanel";
 import DiceRoller from "@/components/dice/DiceRoller";
 import { MIN_TOKEN_SIZE, MAX_TOKEN_SIZE } from "@/lib/mapUtils";
 import type { Session } from "@/types";
+
+const PLAYER_COLORS = [
+  "#3b82f6", "#ef4444", "#22c55e", "#eab308",
+  "#a855f7", "#f97316", "#06b6d4", "#ec4899",
+];
 
 const MapCanvas = dynamic(() => import("@/components/map/MapCanvas"), { ssr: false });
 
@@ -26,7 +31,7 @@ type TabId = "dm" | "tokens" | "dice";
 export default function SessionView({ sessionId, initialSession }: SessionViewProps) {
   useAuth();
 
-  const { setSession, session, userId, upsertToken } = useSessionStore();
+  const { setSession, session, tokens, userId, playerName, playerColor, setPlayerName, setPlayerColor, upsertToken } = useSessionStore();
   const { broadcastTokenMove, broadcastSessionEnd, broadcastTokenDragStart, broadcastTokenDragEnd, lockedBy } = useRealtimeSession(sessionId);
 
   const [mapError, setMapError] = useState("");
@@ -39,6 +44,19 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   const [fogTool, setFogTool] = useState<"reveal" | "hide" | null>(null);
   const [pendingTokenSize, setPendingTokenSize] = useState<number | null>(null);
   const [tokenSizeScope, setTokenSizeScope] = useState<"all" | "players">("all");
+
+  // Name gate — shown when arriving via direct link without a saved name
+  const [authChecked, setAuthChecked] = useState(false);
+  const [gateNameInput, setGateNameInput] = useState("");
+  const [gateColorPick, setGateColorPick] = useState(PLAYER_COLORS[0]);
+  const gateNameRef = useRef<HTMLInputElement>(null);
+  // Runs after useAuth's effect (effects execute in declaration order)
+  useEffect(() => { setAuthChecked(true); }, []);
+  // Pre-fill gate inputs if name/color were already set (e.g. after restore)
+  useEffect(() => {
+    if (playerName) setGateNameInput(playerName);
+    if (playerColor) setGateColorPick(playerColor);
+  }, [playerName, playerColor]);
 
   const router = useRouter();
   const isOwner = !!userId && session?.owner_id === userId;
@@ -109,13 +127,26 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     setSession({ ...current, token_size: newSize });
     const supabase = createClient();
     const currentTokens = useSessionStore.getState().tokens;
-    const inScope = (t: { owner_id: string | null }) => tokenSizeScope === "all" || t.owner_id !== null;
+    // Skip locked tokens — they are protected from batch resize
+    const inScope = (t: { owner_id: string | null; size_locked: boolean }) =>
+      (tokenSizeScope === "all" || t.owner_id !== null) && !t.size_locked;
     currentTokens.filter(inScope).forEach(t => upsertToken({ ...t, size: newSize }));
-    const tokenQuery = supabase.from("tokens").update({ size: newSize }).eq("session_id", current.id);
+    const tokenQuery = supabase.from("tokens")
+      .update({ size: newSize })
+      .eq("session_id", current.id)
+      .eq("size_locked", false);
     await Promise.all([
       supabase.from("sessions").update({ token_size: newSize }).eq("id", current.id),
       tokenSizeScope === "all" ? tokenQuery : tokenQuery.not("owner_id", "is", null),
     ]);
+  };
+
+  const lockAllSizes = async (locked: boolean) => {
+    const current = useSessionStore.getState().session;
+    if (!current || !isOwner) return;
+    const currentTokens = useSessionStore.getState().tokens;
+    currentTokens.forEach(t => upsertToken({ ...t, size_locked: locked }));
+    await createClient().from("tokens").update({ size_locked: locked }).eq("session_id", current.id);
   };
 
   const handleMapUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,6 +188,64 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   ];
 
   const tokenSize = session?.token_size ?? 56;
+  const allSizesLocked = tokens.length > 0 && tokens.every(t => t.size_locked);
+
+  // ── Name gate ─────────────────────────────────────────────────────────────
+  // Show after auth check — wait one tick so useAuth's effect can restore the name first.
+  if (authChecked && !playerName) {
+    const submit = () => {
+      const trimmed = gateNameInput.trim();
+      if (!trimmed) { gateNameRef.current?.focus(); return; }
+      setPlayerName(trimmed);
+      setPlayerColor(gateColorPick);
+    };
+
+    return (
+      <div className="min-h-screen bg-[#0f172a] text-white flex items-center justify-center p-4">
+        <div className="w-full max-w-sm space-y-5">
+          <div className="text-center">
+            <h1 className="text-xl font-black tracking-tight">{session?.name ?? "Game Session"}</h1>
+            <p className="text-slate-500 text-sm mt-1">You need a name before entering.</p>
+          </div>
+          <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 space-y-4">
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Your name</label>
+              <input
+                ref={gateNameRef}
+                autoFocus
+                type="text"
+                value={gateNameInput}
+                onChange={(e) => setGateNameInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()}
+                placeholder="Enter your name"
+                maxLength={30}
+                className="w-full bg-slate-900 text-white px-4 py-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm transition-all placeholder:text-slate-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Your color</label>
+              <div className="flex gap-2 flex-wrap">
+                {PLAYER_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setGateColorPick(c)}
+                    style={{ background: c }}
+                    className={`w-7 h-7 rounded-full transition-all ${gateColorPick === c ? "scale-125 ring-2 ring-white ring-offset-2 ring-offset-[#1e293b]" : "hover:scale-110 opacity-80 hover:opacity-100"}`}
+                  />
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={submit}
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-900/40"
+            >
+              Enter Session
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-white">
@@ -306,7 +395,14 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                 {/* Token default size */}
                 <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
                   <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">⬤ Token Default Size</div>
-                  <p className="text-[11px] text-gray-500 mb-3">Resize all tokens at once. Choose whether to affect all tokens or only player-owned ones.</p>
+                  <p className="text-[11px] text-gray-500 mb-3">Resize all tokens at once. Locked tokens are skipped. Lock individual tokens in the Tokens tab.</p>
+                  {/* Lock all / Unlock all */}
+                  <button
+                    onClick={() => lockAllSizes(!allSizesLocked)}
+                    className="w-full py-1.5 rounded-lg text-xs font-bold mb-3 transition-colors bg-gray-700 hover:bg-gray-600 text-gray-300"
+                  >
+                    {allSizesLocked ? "🔓 Unlock all sizes" : "🔒 Lock all sizes"}
+                  </button>
 
                   {/* Scope toggle */}
                   <div className="flex rounded-lg overflow-hidden border border-gray-700 text-xs mb-3">

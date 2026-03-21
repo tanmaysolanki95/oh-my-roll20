@@ -19,8 +19,16 @@ interface TokenPanelProps {
   onCollapse?: () => void;
 }
 
+interface TokenGroup {
+  key: string;
+  label: string;
+  color: string;
+  isMine: boolean;
+  tokens: Token[];
+}
+
 export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPanelProps) {
-  const { tokens, session, userId, upsertToken, removeToken: removeTokenFromStore } = useSessionStore();
+  const { tokens, session, userId, presence, upsertToken, removeToken: removeTokenFromStore } = useSessionStore();
   const [adding, setAdding] = useState(false);
   const [pendingSize, setPendingSize] = useState<Record<string, number>>({});
   const [hpAmount, setHpAmount] = useState<Record<string, number>>({});
@@ -67,10 +75,8 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
         max_hp: maxHp,
         x: spawn.x,
         y: spawn.y,
-        // Stamp explicit size so changing the session default never retroactively resizes this token
         size: session?.token_size ?? 56,
         image_url: iconPath,
-        // DM adds unclaimed tokens (null); players automatically own their tokens
         ...(!isOwner && userId ? { owner_id: userId } : {}),
       })
       .select()
@@ -84,7 +90,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
   };
 
   const removeToken = async (id: string) => {
-    removeTokenFromStore(id); // optimistic
+    removeTokenFromStore(id);
     const supabase = createClient();
     await supabase.from("tokens").delete().eq("id", id);
   };
@@ -119,11 +125,62 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
     await supabase.from("tokens").update({ owner_id: null }).eq("id", id);
   };
 
+  const toggleSizeLock = async (token: Token) => {
+    const locked = !token.size_locked;
+    upsertToken({ ...token, size_locked: locked });
+    const supabase = createClient();
+    await supabase.from("tokens").update({ size_locked: locked }).eq("id", token.id);
+  };
+
   const maxTokens = session?.max_tokens_per_player ?? 1;
   const ownedCount = tokens.filter((t) => t.owner_id === userId).length;
   const atLimit = !isOwner && !!userId && ownedCount >= maxTokens;
-  // Any authenticated user can add a token, unless they've hit their limit
   const canAdd = (isOwner || !!userId) && !atLimit;
+
+  // ── Token grouping ─────────────────────────────────────────────────────────
+  // DM's tokens are owner_id = null. Players' tokens are owner_id = userId.
+  // Show only visible tokens to non-DM.
+  const visibleTokens = isOwner ? tokens : tokens.filter(t => t.visible ?? true);
+
+  // My key: DM's "own" group is owner_id=null; player's is their userId
+  const myKey = isOwner ? "__dm__" : (userId ?? "__me__");
+
+  const getGroupKey = (t: Token) => t.owner_id ?? "__dm__";
+
+  // Build ordered group map: my group first, then others in first-seen order
+  const groupOrder: string[] = [];
+  const groupTokens = new Map<string, Token[]>();
+  // Ensure my group comes first even if empty (so header still shows when I have tokens later)
+  for (const token of visibleTokens) {
+    const key = getGroupKey(token);
+    if (!groupTokens.has(key)) {
+      groupTokens.set(key, []);
+      if (key !== myKey) groupOrder.push(key); // my key added separately at start
+    }
+    groupTokens.get(key)!.push(token);
+  }
+  const myTokens = groupTokens.get(myKey) ?? [];
+  const sortedKeys = [...(myTokens.length > 0 ? [myKey] : []), ...groupOrder];
+
+  const buildGroups = (): TokenGroup[] => {
+    return sortedKeys.map(key => {
+      const isMine = key === myKey;
+      let label: string;
+      let color: string;
+      if (key === "__dm__") {
+        label = isOwner ? "My Tokens" : "DM";
+        color = "#6366f1";
+      } else {
+        const player = presence.find(p => p.user_id === key);
+        label = isMine ? "My Tokens" : (player?.player_name ?? "Player");
+        color = player?.color ?? "#6b7280";
+      }
+      return { key, label, color, isMine, tokens: groupTokens.get(key) ?? [] };
+    });
+  };
+
+  const groups = buildGroups();
+  const showGroupHeaders = groups.length > 1 || (groups.length === 1 && !groups[0].isMine);
 
   return (
     <div className="flex flex-col gap-3 h-full">
@@ -195,225 +252,240 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
 
       {/* Token list */}
       <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
-        {tokens.length === 0 && (
+        {visibleTokens.length === 0 && (
           <p className="text-xs text-gray-500 text-center mt-4">No tokens yet</p>
         )}
-        {tokens.map((token) => {
-          const hpRatio = Math.max(0, token.hp / token.max_hp);
-          const mine = token.owner_id === userId;
-          const controllable = canControl(token.owner_id);
-          const unclaimed = token.owner_id === null;
-          const effectiveSize = token.size ?? session?.token_size ?? 56;
 
-          const isDead = token.hp === 0;
-          const isHidden = isOwner && !(token.visible ?? true);
-
-          return (
-            <div
-              key={token.id}
-              className={`rounded-xl p-2.5 space-y-1.5 border transition-colors ${mine ? "ring-1 ring-indigo-500" : ""} ${
-                isHidden
-                  ? "bg-gray-900/60 border-dashed border-gray-700/60 opacity-75 hover:opacity-90"
-                  : "bg-gray-800/60 hover:bg-gray-800/90 border-gray-700/40"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                  {/* Icon swatch — clickable for owner/DM to change */}
-                  <button
-                    type="button"
-                    onClick={() => controllable && setOpenIconTokenId(openIconTokenId === token.id ? null : token.id)}
-                    className={`w-6 h-6 rounded-full shrink-0 overflow-hidden border-2 transition-colors ${controllable ? "cursor-pointer hover:border-indigo-400" : "cursor-default"}`}
-                    style={{ borderColor: token.color, background: token.color }}
-                    title={controllable ? "Change icon" : undefined}
-                  >
-                    {token.image_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={token.image_url} alt="" className="w-full h-full object-cover" />
-                    )}
-                  </button>
-                  <span className="text-sm font-medium text-white truncate">{token.name}</span>
-                  {mine && (
-                    <span className="text-xs text-indigo-400 shrink-0">you</span>
-                  )}
-                  {isDead && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-red-950/60 text-red-400 border border-red-800/50 shrink-0">Dead</span>
-                  )}
-                  {isHidden && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-400 border border-amber-800/50 shrink-0">Hidden</span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  {/* Claim / Unclaim — only for non-DM players */}
-                  {!isOwner && unclaimed && (
-                    <button
-                      onClick={() => claimToken(token.id)}
-                      className="text-xs px-1.5 py-0.5 bg-indigo-700 hover:bg-indigo-600 text-white rounded transition-colors"
-                      title="Take ownership of this token — only you and the DM will be able to move it"
-                    >
-                      Claim
-                    </button>
-                  )}
-                  {mine && !isOwner && (
-                    <button
-                      onClick={() => unclaimToken(token.id)}
-                      className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-                      title="Release ownership — anyone can claim this token afterwards"
-                    >
-                      ↩
-                    </button>
-                  )}
-                  {/* Visibility toggle — DM only */}
-                  {isOwner && (
-                    <button
-                      onClick={() => toggleVisible(token)}
-                      className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
-                        token.visible
-                          ? "text-gray-500 hover:text-white hover:bg-gray-700"
-                          : "text-yellow-400 bg-gray-700 hover:text-yellow-300"
-                      }`}
-                      title={token.visible ? "Hide token — players won't see it on the map, you see it dimmed" : "Show token to all players"}
-                    >
-                      {token.visible ? "Hide" : "Show"}
-                    </button>
-                  )}
-                  {/* Delete — DM or token owner */}
-                  {(isOwner || mine) && (
-                    <button
-                      onClick={() => removeToken(token.id)}
-                      className="text-gray-600 hover:text-red-400 text-xs transition-colors"
-                      title="Remove token from the map"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
+        {groups.map((group) => (
+          <div key={group.key}>
+            {/* Group header */}
+            {showGroupHeaders && (
+              <div className="flex items-center gap-2 pt-1 pb-0.5">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: group.color }} />
+                <span className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
+                  {group.label}
+                </span>
+                <div className="flex-1 h-px bg-gray-700/50" />
               </div>
+            )}
 
-              {/* Inline icon picker — opens when swatch is clicked by owner/DM */}
-              {controllable && openIconTokenId === token.id && (
-                <IconPicker
-                  value={token.image_url}
-                  onChange={(path) => updateIcon(token, path)}
-                />
-              )}
+            <div className="space-y-2">
+              {group.tokens.map((token) => {
+                const hpRatio = Math.max(0, token.hp / token.max_hp);
+                const mine = token.owner_id === userId || (isOwner && token.owner_id === null);
+                const controllable = canControl(token.owner_id);
+                const unclaimed = token.owner_id === null;
+                const effectiveSize = token.size ?? session?.token_size ?? 56;
+                const isDead = token.hp === 0;
+                const isHidden = isOwner && !(token.visible ?? true);
 
-              {/* HP controls */}
-              {controllable ? (
-                <div className="rounded-lg bg-gray-900/40 px-2 py-1.5 space-y-1.5">
-                  {/* HP label + big fraction */}
-                  <div className="text-center">
-                    <div className="text-[9px] uppercase tracking-widest text-gray-500 font-semibold mb-0.5">Hit Points</div>
-                    <div className="text-xl font-bold tabular-nums text-gray-100 leading-none">
-                      {token.hp} <span className="text-xs text-gray-500 font-normal">/ {token.max_hp}</span>
+                return (
+                  <div
+                    key={token.id}
+                    className={`rounded-xl p-2.5 space-y-1.5 border transition-colors ${mine ? "ring-1 ring-indigo-500" : ""} ${
+                      isHidden
+                        ? "bg-gray-900/60 border-dashed border-gray-700/60 opacity-75 hover:opacity-90"
+                        : "bg-gray-800/60 hover:bg-gray-800/90 border-gray-700/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                        {/* Icon swatch */}
+                        <button
+                          type="button"
+                          onClick={() => controllable && setOpenIconTokenId(openIconTokenId === token.id ? null : token.id)}
+                          className={`w-6 h-6 rounded-full shrink-0 overflow-hidden border-2 transition-colors ${controllable ? "cursor-pointer hover:border-indigo-400" : "cursor-default"}`}
+                          style={{ borderColor: token.color, background: token.color }}
+                          title={controllable ? "Change icon" : undefined}
+                        >
+                          {token.image_url && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={token.image_url} alt="" className="w-full h-full object-cover" />
+                          )}
+                        </button>
+                        <span className="text-sm font-medium text-white truncate">{token.name}</span>
+                        {mine && (
+                          <span className="text-xs text-indigo-400 shrink-0">you</span>
+                        )}
+                        {isDead && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-red-950/60 text-red-400 border border-red-800/50 shrink-0">Dead</span>
+                        )}
+                        {isHidden && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-400 border border-amber-800/50 shrink-0">Hidden</span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {!isOwner && unclaimed && (
+                          <button
+                            onClick={() => claimToken(token.id)}
+                            className="text-xs px-1.5 py-0.5 bg-indigo-700 hover:bg-indigo-600 text-white rounded transition-colors"
+                            title="Take ownership of this token"
+                          >
+                            Claim
+                          </button>
+                        )}
+                        {mine && !isOwner && (
+                          <button
+                            onClick={() => unclaimToken(token.id)}
+                            className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                            title="Release ownership"
+                          >
+                            ↩
+                          </button>
+                        )}
+                        {isOwner && (
+                          <button
+                            onClick={() => toggleVisible(token)}
+                            className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
+                              token.visible
+                                ? "text-gray-500 hover:text-white hover:bg-gray-700"
+                                : "text-yellow-400 bg-gray-700 hover:text-yellow-300"
+                            }`}
+                            title={token.visible ? "Hide token from players" : "Show token to players"}
+                          >
+                            {token.visible ? "Hide" : "Show"}
+                          </button>
+                        )}
+                        {(isOwner || mine) && (
+                          <button
+                            onClick={() => removeToken(token.id)}
+                            className="text-gray-600 hover:text-red-400 text-xs transition-colors"
+                            title="Remove token from the map"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  {/* HP bar */}
-                  <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${hpRatio * 100}%`,
-                        background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
-                      }}
-                    />
-                  </div>
-                  {/* Amount slider */}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-red-500 shrink-0">1</span>
-                      <input
-                        type="range"
-                        min={1}
-                        max={token.max_hp}
-                        value={hpAmount[token.id] ?? 1}
-                        onChange={(e) => setHpAmount((prev) => ({ ...prev, [token.id]: Number(e.target.value) }))}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex-1 h-1.5 accent-indigo-500 cursor-pointer"
+
+                    {/* Inline icon picker */}
+                    {controllable && openIconTokenId === token.id && (
+                      <IconPicker
+                        value={token.image_url}
+                        onChange={(path) => updateIcon(token, path)}
                       />
-                      <span className="text-[10px] text-gray-500 shrink-0">{token.max_hp}</span>
-                    </div>
-                    <div className="text-center text-xs text-indigo-300 font-semibold mt-0.5 tabular-nums">
-                      {hpAmount[token.id] ?? 1} hp
-                    </div>
-                  </div>
-                  {/* Damage / Heal buttons */}
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => updateHp(token, -(hpAmount[token.id] ?? 1))}
-                      className="flex-1 py-1 bg-red-950 hover:bg-red-900 text-red-200 rounded text-xs font-bold transition-colors"
-                      title="Deal damage"
-                    >
-                      DAMAGE −{hpAmount[token.id] ?? 1}
-                    </button>
-                    <button
-                      onClick={() => updateHp(token, hpAmount[token.id] ?? 1)}
-                      className="flex-1 py-1 bg-green-950 hover:bg-green-900 text-green-200 rounded text-xs font-bold transition-colors"
-                      title="Heal"
-                    >
-                      HEAL +{hpAmount[token.id] ?? 1}
-                    </button>
-                  </div>
-                  {token.hp === 0 && (
-                    <button
-                      onClick={() => updateHp(token, token.max_hp)}
-                      className="w-full py-0.5 text-xs font-semibold text-green-400 hover:text-white hover:bg-green-800 border border-green-800 hover:border-green-700 rounded transition-colors"
-                    >
-                      Revive
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="rounded-lg bg-gray-900/40 px-2 py-1.5">
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${hpRatio * 100}%`,
-                        background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
-                      }}
-                    />
-                  </div>
-                  <div className="text-xs text-gray-500 text-center tabular-nums mt-0.5">
-                    {token.hp} / {token.max_hp}
-                  </div>
-                </div>
-              )}
+                    )}
 
-              {/* Size slider — token owner or DM */}
-              {controllable && (
-                <div className="flex items-center gap-2 rounded-lg bg-gray-900/40 px-2 py-1.5">
-                  <span className="text-xs text-gray-500 shrink-0">Size</span>
-                  <input
-                    type="range"
-                    min={MIN_TOKEN_SIZE}
-                    max={MAX_TOKEN_SIZE}
-                    value={pendingSize[token.id] ?? effectiveSize}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setPendingSize((prev) => ({ ...prev, [token.id]: val }));
-                      // Update the store locally so the canvas token resizes in real-time
-                      // for this player. Other clients don't see it until the DB write below.
-                      upsertToken({ ...token, size: val });
-                    }}
-                    onPointerUp={(e) => {
-                      const val = Number((e.target as HTMLInputElement).value);
-                      setPendingSize((prev) => { const next = { ...prev }; delete next[token.id]; return next; });
-                      // Persist — triggers postgres_changes on other clients
-                      const supabase = createClient();
-                      supabase.from("tokens").update({ size: val }).eq("id", token.id);
-                    }}
-                    className="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                  />
-                  <span className="text-xs text-gray-400 tabular-nums w-7 text-right shrink-0">
-                    {pendingSize[token.id] ?? effectiveSize}
-                  </span>
-                </div>
-              )}
+                    {/* HP controls */}
+                    {controllable ? (
+                      <div className="rounded-lg bg-gray-900/40 px-2 py-1.5 space-y-1.5">
+                        <div className="text-center">
+                          <div className="text-[9px] uppercase tracking-widest text-gray-500 font-semibold mb-0.5">Hit Points</div>
+                          <div className="text-xl font-bold tabular-nums text-gray-100 leading-none">
+                            {token.hp} <span className="text-xs text-gray-500 font-normal">/ {token.max_hp}</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${hpRatio * 100}%`,
+                              background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-red-500 shrink-0">1</span>
+                            <input
+                              type="range"
+                              min={1}
+                              max={token.max_hp}
+                              value={hpAmount[token.id] ?? 1}
+                              onChange={(e) => setHpAmount((prev) => ({ ...prev, [token.id]: Number(e.target.value) }))}
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex-1 h-1.5 accent-indigo-500 cursor-pointer"
+                            />
+                            <span className="text-[10px] text-gray-500 shrink-0">{token.max_hp}</span>
+                          </div>
+                          <div className="text-center text-xs text-indigo-300 font-semibold mt-0.5 tabular-nums">
+                            {hpAmount[token.id] ?? 1} hp
+                          </div>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => updateHp(token, -(hpAmount[token.id] ?? 1))}
+                            className="flex-1 py-1 bg-red-950 hover:bg-red-900 text-red-200 rounded text-xs font-bold transition-colors"
+                          >
+                            DAMAGE −{hpAmount[token.id] ?? 1}
+                          </button>
+                          <button
+                            onClick={() => updateHp(token, hpAmount[token.id] ?? 1)}
+                            className="flex-1 py-1 bg-green-950 hover:bg-green-900 text-green-200 rounded text-xs font-bold transition-colors"
+                          >
+                            HEAL +{hpAmount[token.id] ?? 1}
+                          </button>
+                        </div>
+                        {token.hp === 0 && (
+                          <button
+                            onClick={() => updateHp(token, token.max_hp)}
+                            className="w-full py-0.5 text-xs font-semibold text-green-400 hover:text-white hover:bg-green-800 border border-green-800 hover:border-green-700 rounded transition-colors"
+                          >
+                            Revive
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg bg-gray-900/40 px-2 py-1.5">
+                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${hpRatio * 100}%`,
+                              background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
+                            }}
+                          />
+                        </div>
+                        <div className="text-xs text-gray-500 text-center tabular-nums mt-0.5">
+                          {token.hp} / {token.max_hp}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Size slider — token owner or DM */}
+                    {controllable && (
+                      <div className="flex items-center gap-2 rounded-lg bg-gray-900/40 px-2 py-1.5">
+                        <span className="text-xs text-gray-500 shrink-0">Size</span>
+                        <input
+                          type="range"
+                          min={MIN_TOKEN_SIZE}
+                          max={MAX_TOKEN_SIZE}
+                          value={pendingSize[token.id] ?? effectiveSize}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setPendingSize((prev) => ({ ...prev, [token.id]: val }));
+                            upsertToken({ ...token, size: val });
+                          }}
+                          onPointerUp={(e) => {
+                            const val = Number((e.target as HTMLInputElement).value);
+                            setPendingSize((prev) => { const next = { ...prev }; delete next[token.id]; return next; });
+                            const supabase = createClient();
+                            supabase.from("tokens").update({ size: val }).eq("id", token.id);
+                          }}
+                          className="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                        />
+                        <span className="text-xs text-gray-400 tabular-nums w-7 text-right shrink-0">
+                          {pendingSize[token.id] ?? effectiveSize}
+                        </span>
+                        {/* Lock toggle — DM only */}
+                        {isOwner && (
+                          <button
+                            onClick={() => toggleSizeLock(token)}
+                            className={`text-sm transition-colors shrink-0 ${token.size_locked ? "text-amber-400 hover:text-amber-300" : "text-gray-600 hover:text-gray-300"}`}
+                            title={token.size_locked ? "Size locked — click to unlock (allow batch resize)" : "Lock size — protect from batch resize"}
+                          >
+                            {token.size_locked ? "🔒" : "🔓"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );
