@@ -65,6 +65,16 @@ useEffect(() => { stageScaleRef.current = stageScale; }, [stageScale]);
 
 Always read `.current` inside event handlers, never the state variable directly. Add a new ref + sync effect whenever you add state that event handlers need to read.
 
+### Fog history and undo
+
+`fog_history: FogShape[][]` on `Session` is an append-only array of snapshots. Each entry is the **previous** `fog_shapes` state saved before a fog paint operation was committed. The flow:
+
+1. Before committing a new fog shape, push `current.fog_shapes` onto `fog_history`
+2. Write both `fog_shapes` (new state) and `fog_history` (updated list) to DB in one update
+3. Undo: pop the last entry, restore it as `fog_shapes`, write both back
+
+**50-operation cap** — `fog_history` is capped at 50 entries. When the cap is reached, `SessionView` sets `fogAtLimit = true`, which disables the Reveal/Hide buttons and forces `fogTool` to `null`. The cap is enforced at commit time by slicing `history.slice(0, 49)` before appending. `fog_history` propagates to all clients via the existing `postgres_changes` sessions UPDATE handler — no extra subscription needed.
+
 ### Fog of war controls (lifted state)
 
 Fog tool selection (`fogTool: "reveal" | "hide" | null`) is owned by `SessionView` and passed as a controlled prop to `useFogPainting` (via `MapCanvas`). This allows the DM tab UI in the sidebar to control fog mode while the canvas still handles mouse events. The same lift pattern applies to `pendingTokenSize` and `tokenSizeScope` for the token size slider.
@@ -92,6 +102,9 @@ Effective token size = `token.size ?? session.token_size ?? DEFAULT_TOKEN_SIZE`
 - `session.token_size` is the default set by the DM for new tokens going forward. Changing it does **not** resize existing tokens.
 - `token.size` is an explicit per-token override. `null` means "inherit from session default".
 - When a new token is inserted, stamp `size: session.token_size` explicitly so future changes to the default don't affect it.
+- `token.size_locked` — if `true`, the DM's batch resize (session-level slider) skips this token, and the per-token slider is disabled. The DM can lock/unlock tokens individually or all at once via "Lock all sizes" / "Unlock all sizes" in the DM tab.
+
+**Auto-fit map view** — `MapCanvas` watches for `mapUrl` changes. When `mapUrl` changes and `imageBounds` is ready (image loaded), it calls `zoom.resetView()` once via a `useEffect` + `lastResetMapUrlRef` guard. This fires for all connected clients because `session.map_url` propagates via `postgres_changes`.
 
 ### Token icons
 
@@ -116,7 +129,7 @@ Tokens can display a portrait icon from the built-in library (`public/icons/`). 
 | `src/lib/useRealtimeSession.ts` | All Supabase Realtime subscriptions; returns broadcast helpers and `lockedBy` |
 | `src/lib/mapUtils.ts` | Map constants (`VIRTUAL_SIZE`, `SCALE_BY`, `MIN/MAX_SCALE`, etc.) and `clampStagePos` |
 | `src/lib/useImageSize.ts` | Hook that returns `{width, height}` for a given image URL |
-| `src/components/map/MapCanvas.tsx` | Konva Stage orchestrator — zoom, pan, fog painting. Accepts `fogTool`, `pendingTokenSize`, `tokenSizeScope` as props from SessionView. |
+| `src/components/map/MapCanvas.tsx` | Konva Stage orchestrator — zoom, pan, fog painting, auto-fit on map change. Accepts `fogTool`, `pendingTokenSize`, `tokenSizeScope` as props from SessionView. |
 | `src/components/map/TokenShape.tsx` | Single token shape with drag, HP bar, portrait icon rendering |
 | `src/components/map/FogLayer.tsx` | `FogLayer`, `FogAdminOverlay`, `FogPreviewOutline` exports |
 | `src/components/map/MapControls.tsx` | HTML overlay for zoom in/out/reset — draggable, hidable (✕ to collapse, 🔍 to restore) |
@@ -127,11 +140,11 @@ Tokens can display a portrait icon from the built-in library (`public/icons/`). 
 | `src/app/page.tsx` | Lobby — identity (name + color), two-column Create / Join grid, slate dark theme |
 | `src/app/session/[id]/SessionView.tsx` | Client shell: tabbed sidebar (👑 Dungeon Master / Tokens / Dice), lifted fog/size state, end session |
 | `supabase/schema.sql` | Base schema — run this first on a new project |
-| `supabase/migrations/` | Incremental changes — apply in order (001 → 010) after schema.sql |
+| `supabase/migrations/` | Incremental changes — apply in order (001 → 013) after schema.sql |
 
 ---
 
-## RLS rules (as of migrations 001–010)
+## RLS rules (as of migrations 001–013)
 
 | Operation | Who |
 |---|---|
@@ -181,6 +194,8 @@ Tokens can display a portrait icon from the built-in library (`public/icons/`). 
 - **Never use image dimensions as the fog base rect size** — use `VIRTUAL_SIZE` (6000) to prevent edge bleed at high zoom.
 - **Never check `old.session_id` in a postgres_changes DELETE handler** — REPLICA IDENTITY DEFAULT only sends PK. Use `removeToken(old.id)` directly.
 - **Never add `SCALE_BY` or other `mapUtils` constants to components that don't use them directly** — they're passed in as callbacks from MapCanvas, not imported into child components.
+- **Always `await` Supabase writes that need to propagate via realtime** — Supabase JS v2 is lazy; without `await` the HTTP request is never sent, `postgres_changes` never fires, and other clients never see the update. The per-token size slider's `onPointerUp` was bitten by this; don't repeat it.
+- **fog_history cap is 50** — check `fogHistory.length >= 50` before appending. When at the cap, disable the fog paint tools entirely rather than silently dropping entries.
 - **`page.tsx` uses `"use client"` and `export const dynamic = "force-dynamic"`** — do not add `async` or server-only code to it.
 - **Favicon is `src/app/icon.svg`** (Next.js App Router file convention), not `public/favicon.ico`. The file in `public/favicon.svg` is a static fallback.
 - **Do not put `clipFunc` directly on a Konva `Image` node** — place it on a wrapping `Group` instead. The clip coordinate origin in a `with check` behaves inconsistently on leaf nodes; on a `Group` it reliably centers at (0, 0) of the group's local space.
