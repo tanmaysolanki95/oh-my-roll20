@@ -13,6 +13,7 @@ import { useFogPainting } from "@/lib/useFogPainting";
 import TokenShape from "./TokenShape";
 import { FogLayer, FogAdminOverlay, FogPreviewOutline } from "./FogLayer";
 import MapControls from "./MapControls";
+import type { ThemeTokens } from "@/lib/themeTokens";
 
 interface MapCanvasProps {
   sessionId: string;
@@ -26,6 +27,7 @@ interface MapCanvasProps {
   pendingTokenSize: number | null;
   /** Which tokens the session-level size slider affects */
   tokenSizeScope: "all" | "players";
+  themeTokens: ThemeTokens;
 }
 
 function MapBackground({ url, width, height }: { url: string; width: number; height: number }) {
@@ -35,7 +37,7 @@ function MapBackground({ url, width, height }: { url: string; width: number; hei
 
 export default function MapCanvas({
   broadcastTokenMove, broadcastTokenDragStart, broadcastTokenDragEnd,
-  lockedBy, fogTool, pendingTokenSize, tokenSizeScope,
+  lockedBy, fogTool, pendingTokenSize, tokenSizeScope, themeTokens,
 }: MapCanvasProps) {
   useAuth();
 
@@ -65,6 +67,10 @@ export default function MapCanvas({
       lastResetMapUrlRef.current = mapUrl;
     }
   }, [imageBounds, mapUrl, zoom.resetView]);
+
+  // Stale-closure ref for themeTokens (event handlers read .current).
+  const themeTokensRef = useRef(themeTokens);
+  useEffect(() => { themeTokensRef.current = themeTokens; }, [themeTokens]);
 
   // Panning
   const isPanning = useRef(false);
@@ -156,6 +162,8 @@ export default function MapCanvas({
             isOwner={isOwner}
             mapWidth={imageSize.width}
             mapHeight={imageSize.height}
+            fogColor={themeTokens.fogColor}
+            fogAdminOpacity={themeTokens.fogAdminOpacity}
           />
         )}
 
@@ -184,6 +192,7 @@ export default function MapCanvas({
                 onDragMove={handleDragMove}
                 onDragEnd={handleDragEnd}
                 onDragStart={broadcastTokenDragStart}
+                tokenRing={themeTokens.tokenRing}
               />
             );
           })}
@@ -191,7 +200,7 @@ export default function MapCanvas({
 
         {/* Layer 5 — fog paint preview outline (admin only, above tokens) */}
         {isOwner && fog.fogPreview && (
-          <FogPreviewOutline preview={fog.fogPreview} stageScale={zoom.stageScale} />
+          <FogPreviewOutline preview={fog.fogPreview} stageScale={zoom.stageScale} fogPreviewStroke={themeTokens.fogPreviewStroke} />
         )}
       </Stage>
 
