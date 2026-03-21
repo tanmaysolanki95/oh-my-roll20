@@ -23,13 +23,29 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
   const [addError, setAddError] = useState("");
 
   const gridSize = session?.grid_size ?? 60;
+  const mapUrl = session?.map_url ?? null;
 
   const canControl = (tokenOwnerId: string | null) =>
     isOwner || tokenOwnerId === userId;
 
+  function getSpawnPosition(): Promise<{ x: number; y: number }> {
+    const defaultPos = { x: gridSize * 2, y: gridSize * 2 };
+    if (!mapUrl) return Promise.resolve(defaultPos);
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({
+        x: Math.min(gridSize * 2, img.naturalWidth - gridSize),
+        y: Math.min(gridSize * 2, img.naturalHeight - gridSize),
+      });
+      img.onerror = () => resolve(defaultPos);
+      img.src = mapUrl;
+    });
+  }
+
   const addToken = async () => {
     if (!name.trim()) return;
     setAddError("");
+    const spawn = await getSpawnPosition();
     const supabase = createClient();
     // Use .select() to get the full inserted row back (with server-generated id etc.)
     const { data, error } = await supabase
@@ -40,8 +56,8 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
         color,
         hp: maxHp,
         max_hp: maxHp,
-        x: gridSize * 2,
-        y: gridSize * 2,
+        x: spawn.x,
+        y: spawn.y,
       })
       .select()
       .single();
