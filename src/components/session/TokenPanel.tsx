@@ -416,35 +416,38 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
 
                     {/* Size slider — token owner or DM */}
                     {controllable && (
-                      <div className="flex items-center gap-2 rounded-lg bg-gray-900/40 px-2 py-1.5">
-                        <span className="text-xs text-gray-500 shrink-0">Size</span>
+                      <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${token.size_locked ? "bg-gray-900/20" : "bg-gray-900/40"}`}>
+                        <span className={`text-xs shrink-0 ${token.size_locked ? "text-gray-600" : "text-gray-500"}`}>Size</span>
                         <input
                           type="range"
                           min={MIN_TOKEN_SIZE}
                           max={MAX_TOKEN_SIZE}
+                          disabled={token.size_locked}
                           value={pendingSize[token.id] ?? effectiveSize}
                           onChange={(e) => {
+                            if (token.size_locked) return;
                             const val = Number(e.target.value);
                             setPendingSize((prev) => ({ ...prev, [token.id]: val }));
                             upsertToken({ ...token, size: val });
                           }}
                           onPointerUp={(e) => {
+                            if (token.size_locked) return;
                             const val = Number((e.target as HTMLInputElement).value);
                             setPendingSize((prev) => { const next = { ...prev }; delete next[token.id]; return next; });
                             const supabase = createClient();
                             supabase.from("tokens").update({ size: val }).eq("id", token.id);
                           }}
-                          className="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                          className={`flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none accent-indigo-500 ${token.size_locked ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
                         />
-                        <span className="text-xs text-gray-400 tabular-nums w-7 text-right shrink-0">
+                        <span className={`text-xs tabular-nums w-7 text-right shrink-0 ${token.size_locked ? "text-gray-600" : "text-gray-400"}`}>
                           {pendingSize[token.id] ?? effectiveSize}
                         </span>
                         {/* Lock toggle — DM only */}
                         {isOwner && (
                           <button
                             onClick={() => toggleSizeLock(token)}
-                            className={`text-sm transition-colors shrink-0 ${token.size_locked ? "text-amber-400 hover:text-amber-300" : "text-gray-600 hover:text-gray-300"}`}
-                            title={token.size_locked ? "Size locked — click to unlock (allow batch resize)" : "Lock size — protect from batch resize"}
+                            className={`text-sm transition-colors shrink-0 ${token.size_locked ? "text-amber-400 hover:text-amber-300" : "text-gray-400 hover:text-amber-400"}`}
+                            title={token.size_locked ? "Unlock size" : "Lock size"}
                           >
                             {token.size_locked ? "🔒" : "🔓"}
                           </button>
