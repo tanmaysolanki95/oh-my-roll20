@@ -11,6 +11,7 @@ A lightweight virtual tabletop (VTT) for D&D sessions with friends. Built to be 
 - **HP tracking** — per-token HP bars visible and editable by the token owner or DM
 - **Token ownership** — players place and own their own tokens; only the owner (or DM) can move or delete them
 - **Token visibility** — DM can hide tokens from players (e.g. pre-place NPCs) and reveal them at will
+- **Token portraits** — choose from a built-in library of 86 character icons (humans, fantasy races, creatures, animals); portrait is clipped to the token circle with the token's color showing as a ring border
 - **Per-token size** — each token can have its own size; DM sets a session-level default for new tokens
 - **Max tokens per player** — DM can cap how many tokens each player can place (default: 1)
 - **Fog of war** — DM paints rectangular reveal/hide zones over the map; players only see revealed areas; all changes are real-time
@@ -66,7 +67,7 @@ npm install
 2. **Authentication → Providers → Anonymous** → enable it
 3. **SQL Editor** → paste and run `supabase/schema.sql`
 4. If you hit a `pg_cron` error, first enable it under **Database → Extensions → pg_cron**, then re-run the schema
-5. Apply all numbered migration files in `supabase/migrations/` in order (001 → 007)
+5. Apply all numbered migration files in `supabase/migrations/` in order (001 → 010)
 
 ### 3. Configure environment variables
 
@@ -108,7 +109,7 @@ tokens
   hp          int
   max_hp      int
   x, y        float (canvas pixel position)
-  image_url   text  (reserved for token portraits)
+  image_url   text  (relative path to portrait icon, e.g. /icons/humans/fighter.png)
   owner_id    uuid  FK → auth.users, nullable (null = DM-owned / unclaimed)
   size        int   nullable (per-token override; null = use session.token_size)
   visible     bool  (whether players can see this token, default true)
@@ -151,6 +152,9 @@ Incremental schema changes live in `supabase/migrations/`. Apply them in order o
 | `005_join_code.sql` | Adds `sessions.join_code` (unique 6-char uppercase) |
 | `006_token_delete_rls.sql` | Broadens token DELETE RLS so players can delete their own tokens |
 | `007_max_tokens_per_player.sql` | Adds `sessions.max_tokens_per_player` |
+| `008_security_hardening.sql` | Tightens token UPDATE RLS, adds storage UPDATE/DELETE policies, adds numeric range constraints and text length limits |
+| `009_join_code_entropy.sql` | Increases join code entropy |
+| `010_storage_upload_fix.sql` | Fixes map upload RLS — replaces unreliable `split_part(name)` in INSERT `with check` and adds missing `with check` to the UPDATE policy |
 
 ## Deployment
 
@@ -176,19 +180,21 @@ src/
   components/
     map/
       MapCanvas.tsx           # Konva stage orchestrator — zoom, pan, fog painting
-      TokenShape.tsx          # Single token: circle, label, HP bar, +/- buttons
+      TokenShape.tsx          # Single token: circle, portrait icon, HP bar, +/- buttons
       FogLayer.tsx            # FogLayer (player/admin fog), FogAdminOverlay, FogPreviewOutline
       FogToolbar.tsx          # HTML overlay: fog on/off, reveal/hide tool, clear
       MapControls.tsx         # HTML overlay: zoom in/out/reset, token size slider
     dice/DiceRoller.tsx       # Expression input + quick buttons + roll log
     session/
-      TokenPanel.tsx          # Sidebar: add token, visibility toggle, delete, per-token size
+      TokenPanel.tsx          # Sidebar: add token, visibility toggle, delete, per-token size, icon picker
+      IconPicker.tsx          # Inline icon picker with category tabs and thumbnail grid
       PresenceBar.tsx         # Header: session name, join code, players, end session
     ui/
       Logo.tsx                # d20 SVG React component (gradient, used in lobby)
   lib/
     mapUtils.ts               # Map constants (VIRTUAL_SIZE, SCALE_BY, etc.) + clampStagePos
     useImageSize.ts           # Hook: returns {width, height} of an image URL
+    icons.ts                  # Icon manifest — ICONS[], ICON_CATEGORIES, getIconsByCategory()
     supabase/client.ts        # Singleton browser client
     dice.ts                   # Pure dice expression parser and roller
     useAuth.ts                # Anonymous auth hook
@@ -199,7 +205,12 @@ src/
     index.ts                  # Shared TypeScript interfaces
 supabase/
   schema.sql                  # Full base DB schema, RLS policies, storage bucket, pg_cron job
-  migrations/                 # Incremental schema changes (001–007)
+  migrations/                 # Incremental schema changes (001–010)
 public/
   favicon.svg                 # Flat d20 SVG (fallback / static reference)
+  icons/                      # Built-in token portrait library (CC0, 128×128 PNG)
+    animals/                  # ~23 animal icons
+    creatures/                # ~22 creature/monster icons
+    fantasy/                  # ~21 fantasy race icons
+    humans/                   # 20 human character class icons
 ```
