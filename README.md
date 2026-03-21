@@ -8,7 +8,7 @@ A lightweight virtual tabletop (VTT) for D&D sessions with friends. Built to be 
 
 - **Shared map** — upload any image as a map background, overlaid with a customisable grid
 - **Tokens** — drag character tokens around the map with real-time position sync
-- **HP tracking** — per-token HP bars visible and editable by the token owner or DM
+- **HP tracking** — per-token HP bars with a slider for dealing damage or healing; visible and editable by the token owner or DM
 - **Token ownership** — players place and own their own tokens; only the owner (or DM) can move or delete them
 - **Token visibility** — DM can hide tokens from players (e.g. pre-place NPCs) and reveal them at will
 - **Token portraits** — choose from a built-in library of 86 character icons (humans, fantasy races, creatures, animals); portrait is clipped to the token circle with the token's color showing as a ring border
@@ -18,7 +18,8 @@ A lightweight virtual tabletop (VTT) for D&D sessions with friends. Built to be 
 - **Token drag locking** — when a player is dragging their token the DM is automatically locked out, preventing conflicts
 - **Join codes** — short 6-character uppercase codes (e.g. `A3F2B9`) so players can join without a raw UUID URL
 - **Session ending** — DM can end a session and immediately redirect all connected players to the lobby
-- **Dice roller** — full expression parser (`3d20+10`, `2d6-1`, etc.) with a shared roll log
+- **Dice roller** — full expression parser (`3d20+10`, `2d6-1`, etc.) with a shared roll log; natural 20/1 callouts; violet accent theme
+- **Tabbed sidebar** — Session / Tokens / Dice tabs with a resizable sidebar; DM controls (invite code, map upload, token limit, grid size) live in the Session tab with clear descriptions
 - **Real-time** — all state syncs across all connected clients in ~100ms
 - **d20 logo** — fantasy-themed app icon shown in the browser tab and lobby header
 
@@ -176,13 +177,13 @@ src/
     page.tsx                  # Lobby (create / join session by code)
     session/[id]/
       page.tsx                # Server component — fetches session, renders SessionView
-      SessionView.tsx         # Client shell — wires auth, realtime, map upload, end session
+      SessionView.tsx         # Client shell — tabbed sidebar (Session/Tokens/Dice), map upload, realtime, end session
   components/
     map/
       MapCanvas.tsx           # Konva stage orchestrator — zoom, pan, fog painting
-      TokenShape.tsx          # Single token: circle, portrait icon, HP bar, +/- buttons
+      TokenShape.tsx          # Single token: circle, portrait icon, HP bar
       FogLayer.tsx            # FogLayer (player/admin fog), FogAdminOverlay, FogPreviewOutline
-      FogToolbar.tsx          # HTML overlay: fog on/off, reveal/hide tool, clear
+      FogToolbar.tsx          # HTML overlay: fog on/off, reveal area, hide area, reset all
       MapControls.tsx         # HTML overlay: zoom in/out/reset, token size slider
     dice/DiceRoller.tsx       # Expression input + quick buttons + roll log
     session/

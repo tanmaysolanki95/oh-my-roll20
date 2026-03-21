@@ -69,33 +69,42 @@ export default function FogToolbar({ fogEnabled, fogTool, onToggleFog, onActivat
             ? "bg-indigo-600 text-white hover:bg-indigo-500"
             : "bg-gray-700 text-gray-300 hover:bg-gray-600"
         }`}
+        title={fogEnabled ? "Fog is ON — players only see revealed areas. Click to disable." : "Fog is OFF — players see the whole map. Click to enable."}
       >
-        Fog {fogEnabled ? "On" : "Off"}
+        🌫️ Fog {fogEnabled ? "On" : "Off"}
       </button>
 
       {fogEnabled && (
         <>
           <div className="w-px h-4 bg-gray-700 shrink-0" />
-          {(["reveal", "hide"] as const).map((tool) => (
-            <button
-              key={tool}
-              onClick={() => onActivateTool(fogTool === tool ? null : tool)}
-              className={`text-xs px-2 py-1 rounded font-medium capitalize transition-colors ${
-                fogTool === tool
-                  ? tool === "reveal" ? "bg-green-700 text-white" : "bg-red-800 text-white"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-              }`}
-              title={tool === "reveal" ? "Drag to reveal map area" : "Drag to re-fog map area"}
-            >
-              {tool}
-            </button>
-          ))}
+          <button
+            onClick={() => onActivateTool(fogTool === "reveal" ? null : "reveal")}
+            className={`text-xs px-2 py-1 rounded font-medium transition-colors ${
+              fogTool === "reveal"
+                ? "bg-green-700 text-white"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+            title="Drag on the map to uncover an area for players"
+          >
+            👁 Reveal area
+          </button>
+          <button
+            onClick={() => onActivateTool(fogTool === "hide" ? null : "hide")}
+            className={`text-xs px-2 py-1 rounded font-medium transition-colors ${
+              fogTool === "hide"
+                ? "bg-red-800 text-white"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+            title="Drag on the map to re-fog an area, hiding it from players"
+          >
+            🌑 Hide area
+          </button>
           <button
             onClick={onClearFog}
             className="text-xs px-2 py-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
-            title="Remove all fog reveals"
+            title="Remove all fog zones — the whole map becomes fogged again"
           >
-            Clear
+            Reset all
           </button>
         </>
       )}

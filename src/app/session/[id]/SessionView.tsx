@@ -20,17 +20,25 @@ interface SessionViewProps {
   initialSession: Session;
 }
 
+type TabId = "session" | "tokens" | "dice";
+
 export default function SessionView({ sessionId, initialSession }: SessionViewProps) {
   useAuth();
 
   const { setSession, session, userId } = useSessionStore();
   const { broadcastTokenMove, broadcastSessionEnd, broadcastTokenDragStart, broadcastTokenDragEnd, lockedBy } = useRealtimeSession(sessionId);
   const [mapError, setMapError] = useState("");
+  const [mapUploading, setMapUploading] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(256);
-  const [tokensCollapsed, setTokensCollapsed] = useState(false);
-  const [diceCollapsed, setDiceCollapsed] = useState(false);
-  const [diceHeight, setDiceHeight] = useState(320);
+  const [sidebarWidth, setSidebarWidth] = useState(288);
+  const [activeTab, setActiveTab] = useState<TabId>("tokens");
+
+  const router = useRouter();
+  const isOwner = !!userId && session?.owner_id === userId;
+
+  useEffect(() => {
+    setSession(initialSession);
+  }, [initialSession, setSession]);
 
   const copyJoinCode = () => {
     if (!session?.join_code) return;
@@ -38,13 +46,6 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     setCodeCopied(true);
     setTimeout(() => setCodeCopied(false), 1500);
   };
-  const router = useRouter();
-
-  const isOwner = !!userId && session?.owner_id === userId;
-
-  useEffect(() => {
-    setSession(initialSession);
-  }, [initialSession, setSession]);
 
   const endSession = async () => {
     broadcastSessionEnd();
@@ -67,7 +68,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     const current = useSessionStore.getState().session;
     if (!current || !isOwner) return;
     const newSize = Math.max(20, Math.min(200, current.grid_size + delta));
-    setSession({ ...current, grid_size: newSize }); // optimistic
+    setSession({ ...current, grid_size: newSize });
     await createClient().from("sessions").update({ grid_size: newSize }).eq("id", sessionId);
   };
 
@@ -78,7 +79,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     setMapError("");
 
     const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"];
-    const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
+    const MAX_BYTES = 20 * 1024 * 1024;
     if (!ALLOWED_TYPES.includes(file.type)) {
       setMapError("Only image files are allowed (PNG, JPG, GIF, WebP, SVG).");
       return;
@@ -88,6 +89,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
       return;
     }
 
+    setMapUploading(true);
     const supabase = createClient();
     const ext = file.name.split(".").pop();
     const path = `${sessionId}/map.${ext}`;
@@ -96,24 +98,29 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
       .from("maps")
       .upload(path, file, { upsert: true });
 
-    if (uploadError) { setMapError(uploadError.message); return; }
+    if (uploadError) { setMapError(uploadError.message); setMapUploading(false); return; }
 
     const { data } = supabase.storage.from("maps").getPublicUrl(path);
 
-    // Persist to DB — the sessions Postgres Changes subscription will
-    // propagate the new map_url to all connected clients automatically.
     const { error: updateError } = await supabase
       .from("sessions")
       .update({ map_url: data.publicUrl, fog_enabled: true })
       .eq("id", sessionId);
 
+    setMapUploading(false);
     if (updateError) { setMapError(updateError.message); return; }
 
-    // Update local store immediately (don't wait for the subscription round-trip)
-    // Spread from the current store session to avoid clobbering other fields.
     const current = useSessionStore.getState().session;
     if (current) setSession({ ...current, map_url: data.publicUrl, fog_enabled: true });
+    // Reset the input so the same file can be re-uploaded if needed
+    e.target.value = "";
   };
+
+  const tabs: { id: TabId; icon: string; label: string }[] = [
+    ...(isOwner ? [{ id: "session" as TabId, icon: "⚙️", label: "Session" }] : []),
+    { id: "tokens", icon: "🎭", label: "Tokens" },
+    { id: "dice", icon: "🎲", label: "Dice" },
+  ];
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-white">
@@ -129,22 +136,9 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
             broadcastTokenDragEnd={broadcastTokenDragEnd}
             lockedBy={lockedBy}
           />
-
-          {/* Map upload — DM only */}
-          {isOwner && (
-            <label className="absolute bottom-4 left-4 cursor-pointer" title="Upload an image to use as the battle map — enables fog of war automatically">
-              <span className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 rounded border border-gray-600 transition-colors">
-                Upload Map
-              </span>
-              <input type="file" accept="image/*" className="hidden" onChange={handleMapUpload} />
-            </label>
-          )}
-          {mapError && (
-            <p className="absolute bottom-4 left-36 text-xs text-red-400">{mapError}</p>
-          )}
         </div>
 
-        {/* Resize handle */}
+        {/* Sidebar resize handle */}
         <div
           className="w-1 shrink-0 cursor-col-resize bg-gray-800 hover:bg-indigo-500/60 active:bg-indigo-500 transition-colors"
           onPointerDown={(e) => {
@@ -153,7 +147,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
             const startWidth = sidebarWidth;
             const onMove = (ev: PointerEvent) => {
               const delta = startX - ev.clientX;
-              setSidebarWidth(Math.max(200, Math.min(520, startWidth + delta)));
+              setSidebarWidth(Math.max(220, Math.min(560, startWidth + delta)));
             };
             const onUp = () => {
               window.removeEventListener("pointermove", onMove);
@@ -166,116 +160,126 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
         {/* Right sidebar */}
         <div className="shrink-0 bg-gray-900 border-l border-gray-800 flex flex-col" style={{ width: sidebarWidth }}>
-          {/* DM-only controls */}
-          {isOwner && (
-            <div className="px-3 py-2 border-b border-gray-800 space-y-2">
-              {/* Join code */}
-              {session?.join_code && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 uppercase tracking-wider shrink-0">Code</span>
-                  <span className="font-mono text-sm font-bold text-indigo-300 tracking-widest flex-1">{session.join_code}</span>
-                  <button
-                    onClick={copyJoinCode}
-                    className="text-xs text-gray-500 hover:text-white transition-colors shrink-0"
-                  >
-                    {codeCopied ? "Copied!" : "Copy"}
-                  </button>
+
+          {/* Tab bar */}
+          <div className="flex border-b border-gray-800 bg-gray-900/80 shrink-0">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? "border-indigo-500 text-white"
+                    : "border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600"
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+
+            {/* ── Session tab (DM only) ── */}
+            {activeTab === "session" && isOwner && (
+              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+
+                {/* Invite code */}
+                <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
+                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">🔗 Invite Code</div>
+                  <p className="text-[11px] text-gray-500 mb-2">Share this code with players so they can join the session.</p>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-lg font-black text-indigo-300 tracking-widest flex-1">
+                      {session?.join_code ?? "—"}
+                    </span>
+                    <button
+                      onClick={copyJoinCode}
+                      className="text-xs px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded-lg transition-colors shrink-0"
+                    >
+                      {codeCopied ? "✓ Copied!" : "📋 Copy"}
+                    </button>
+                  </div>
                 </div>
-              )}
-              {/* Max tokens per player */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wider" title="Maximum number of tokens each player can place on the map">Player tokens</span>
-                <div className="flex items-center gap-1 ml-auto">
-                  <button
-                    onClick={() => changeMaxTokens(-1)}
-                    className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
-                    title="Decrease max tokens per player"
-                  >−</button>
-                  <span className="text-xs text-gray-300 tabular-nums w-6 text-center">
-                    {session?.max_tokens_per_player ?? 1}
-                  </span>
-                  <button
-                    onClick={() => changeMaxTokens(1)}
-                    className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
-                    title="Increase max tokens per player"
-                  >+</button>
+
+                {/* Battle map upload */}
+                <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
+                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">🗺️ Battle Map</div>
+                  <p className="text-[11px] text-gray-500 mb-2">Upload the image players will fight on. Fog of war is enabled automatically when a map is loaded.</p>
+                  <label className="block cursor-pointer">
+                    <div className={`w-full py-2 px-3 border border-dashed rounded-lg text-center text-xs transition-colors ${
+                      mapUploading
+                        ? "border-indigo-500/50 text-indigo-400 bg-indigo-950/20"
+                        : "border-gray-600 text-gray-400 hover:border-indigo-500/60 hover:text-gray-200 bg-gray-900/40"
+                    }`}>
+                      {mapUploading ? "Uploading…" : session?.map_url ? "🔄 Replace map image" : "+ Upload image (PNG, JPG, WebP — max 20 MB)"}
+                    </div>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleMapUpload} />
+                  </label>
+                  {mapError && <p className="text-xs text-red-400 mt-1.5">{mapError}</p>}
+                  {session?.map_url && !mapUploading && (
+                    <p className="text-[11px] text-gray-600 mt-1.5">Map loaded ✓</p>
+                  )}
                 </div>
+
+                {/* Player token limit */}
+                <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
+                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">🎭 Player Token Limit</div>
+                  <p className="text-[11px] text-gray-500 mb-2">How many tokens each player is allowed to place on the map.</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => changeMaxTokens(-1)}
+                      className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors"
+                    >−</button>
+                    <span className="text-base font-bold text-gray-100 tabular-nums w-8 text-center">
+                      {session?.max_tokens_per_player ?? 1}
+                    </span>
+                    <button
+                      onClick={() => changeMaxTokens(1)}
+                      className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors"
+                    >+</button>
+                    <span className="text-xs text-gray-500">per player</span>
+                  </div>
+                </div>
+
+                {/* Grid cell size */}
+                <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
+                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">⊞ Grid Cell Size</div>
+                  <p className="text-[11px] text-gray-500 mb-2">Width of each grid square in canvas pixels. Adjust to match your map's grid.</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => changeGridSize(-10)}
+                      className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors"
+                    >−</button>
+                    <span className="text-base font-bold text-gray-100 tabular-nums w-12 text-center">
+                      {session?.grid_size ?? 60}px
+                    </span>
+                    <button
+                      onClick={() => changeGridSize(10)}
+                      className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors"
+                    >+</button>
+                  </div>
+                </div>
+
               </div>
-              {/* Grid size */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wider" title="Size of each grid cell in canvas pixels">Grid</span>
-                <div className="flex items-center gap-1 ml-auto">
-                  <button
-                    onClick={() => changeGridSize(-10)}
-                    className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
-                    title="Shrink grid cells"
-                  >−</button>
-                  <span className="text-xs text-gray-300 tabular-nums w-8 text-center">
-                    {session?.grid_size ?? 60}px
-                  </span>
-                  <button
-                    onClick={() => changeGridSize(10)}
-                    className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
-                    title="Enlarge grid cells"
-                  >+</button>
-                </div>
+            )}
+
+            {/* ── Tokens tab ── */}
+            {activeTab === "tokens" && (
+              <div className="flex-1 min-h-0 px-3 pb-3 pt-2 overflow-hidden flex flex-col">
+                <TokenPanel sessionId={sessionId} isOwner={isOwner} />
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Tokens panel */}
-          {tokensCollapsed ? (
-            <button
-              onClick={() => setTokensCollapsed(false)}
-              className="flex items-center justify-between px-3 py-1.5 border-b border-gray-800 text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors shrink-0"
-              title="Expand token panel"
-            >
-              <span className="text-xs font-semibold uppercase tracking-wider">Tokens</span>
-              <span className="text-xs">▾</span>
-            </button>
-          ) : (
-            <div className={`${diceCollapsed ? "flex-1" : ""} min-h-0 px-3 pb-3 pt-1 overflow-hidden flex flex-col`}
-              style={!diceCollapsed ? { height: `calc(100% - ${diceHeight}px - 4px)` } : undefined}
-            >
-              <TokenPanel sessionId={sessionId} isOwner={isOwner} onCollapse={() => setTokensCollapsed(true)} />
-            </div>
-          )}
+            {/* ── Dice tab ── */}
+            {activeTab === "dice" && (
+              <div className="flex-1 min-h-0 px-3 pb-3 pt-2 overflow-hidden flex flex-col">
+                <DiceRoller sessionId={sessionId} />
+              </div>
+            )}
 
-          {/* Drag handle between panels */}
-          {!tokensCollapsed && !diceCollapsed && (
-            <div
-              className="h-1 shrink-0 cursor-row-resize bg-gray-800 hover:bg-indigo-500/60 active:bg-indigo-500 transition-colors"
-              title="Drag to resize panels"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                const startY = e.clientY;
-                const startH = diceHeight;
-                const onMove = (ev: PointerEvent) => setDiceHeight(Math.max(120, Math.min(500, startH + (startY - ev.clientY))));
-                const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
-                window.addEventListener("pointermove", onMove);
-                window.addEventListener("pointerup", onUp);
-              }}
-            />
-          )}
-
-          {/* Dice panel */}
-          {diceCollapsed ? (
-            <button
-              onClick={() => setDiceCollapsed(false)}
-              className="flex items-center justify-between px-3 py-1.5 border-t border-gray-800 text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors shrink-0"
-              title="Expand dice roller"
-            >
-              <span className="text-xs font-semibold uppercase tracking-wider">Dice</span>
-              <span className="text-xs">▾</span>
-            </button>
-          ) : (
-            <div
-              className={`shrink-0 px-3 pb-3 pt-1 overflow-hidden flex flex-col ${tokensCollapsed ? "flex-1" : ""}`}
-              style={!tokensCollapsed ? { height: diceHeight } : undefined}
-            >
-              <DiceRoller sessionId={sessionId} onCollapse={() => setDiceCollapsed(true)} />
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

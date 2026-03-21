@@ -115,7 +115,7 @@ Tokens can display a portrait icon from the built-in library (`public/icons/`). 
 | `src/components/session/IconPicker.tsx` | Inline icon picker with category tabs and thumbnail grid |
 | `src/lib/icons.ts` | Icon manifest — `ICONS[]`, `ICON_CATEGORIES`, `getIconsByCategory()` |
 | `public/icons/` | Static portrait PNGs organized by category (animals/creatures/fantasy/humans) |
-| `src/app/session/[id]/SessionView.tsx` | Client shell: map upload, join code display, max tokens, end session |
+| `src/app/session/[id]/SessionView.tsx` | Client shell: tabbed sidebar (Session/Tokens/Dice), map upload, fog toolbar, end session |
 | `supabase/schema.sql` | Base schema — run this first on a new project |
 | `supabase/migrations/` | Incremental changes — apply in order (001 → 010) after schema.sql |
 
