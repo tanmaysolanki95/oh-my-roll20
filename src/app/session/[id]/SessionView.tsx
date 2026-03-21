@@ -23,7 +23,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   useAuth();
 
   const { setSession, session, userId } = useSessionStore();
-  const { broadcastTokenMove, broadcastSessionEnd } = useRealtimeSession(sessionId);
+  const { broadcastTokenMove, broadcastSessionEnd, broadcastTokenDragStart, broadcastTokenDragEnd, lockedBy } = useRealtimeSession(sessionId);
   const [mapError, setMapError] = useState("");
   const router = useRouter();
 
@@ -87,7 +87,13 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
       <div className="flex flex-1 min-h-0 gap-0">
         {/* Main map area */}
         <div className="flex-1 min-w-0 relative p-2">
-          <MapCanvas sessionId={sessionId} broadcastTokenMove={broadcastTokenMove} />
+          <MapCanvas
+            sessionId={sessionId}
+            broadcastTokenMove={broadcastTokenMove}
+            broadcastTokenDragStart={broadcastTokenDragStart}
+            broadcastTokenDragEnd={broadcastTokenDragEnd}
+            lockedBy={lockedBy}
+          />
 
           {/* Map upload — DM only */}
           {isOwner && (

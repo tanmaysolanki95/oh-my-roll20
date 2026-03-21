@@ -13,6 +13,9 @@ import { useAuth } from "@/lib/useAuth";
 interface MapCanvasProps {
   sessionId: string;
   broadcastTokenMove: (id: string, x: number, y: number) => void;
+  broadcastTokenDragStart: (token_id: string) => void;
+  broadcastTokenDragEnd: (token_id: string) => void;
+  lockedBy: Record<string, string>; // token_id → user_id currently dragging it
 }
 
 const GRID_COLOR = "rgba(255,255,255,0.15)";
@@ -49,14 +52,16 @@ function clampStagePos(
 // ---------------------------------------------------------------------------
 // TokenShape
 // ---------------------------------------------------------------------------
-function TokenShape({ token, canControl, tokenSize, imageBounds, stageRef, onDragMove, onDragEnd, onHpChange }: {
+function TokenShape({ token, canControl, draggable, tokenSize, imageBounds, stageRef, onDragMove, onDragEnd, onDragStart, onHpChange }: {
   token: Token;
   canControl: boolean;
+  draggable: boolean;
   tokenSize: number;
   imageBounds: { x: number; y: number; width: number; height: number } | null;
   stageRef: React.MutableRefObject<Konva.Stage | null>;
   onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
+  onDragStart: (id: string) => void;
   onHpChange: (token: Token, delta: number) => void;
 }) {
   const hpRatio = Math.max(0, token.hp / token.max_hp);
@@ -64,8 +69,6 @@ function TokenShape({ token, canControl, tokenSize, imageBounds, stageRef, onDra
   const barWidth = tokenSize;
   const barHeight = 6;
   const lastBroadcast = useRef(0);
-
-  const draggable = canControl;
 
   function clampToBounds(val: number, min: number, max: number) {
     return Math.max(min, Math.min(max, val));
@@ -85,6 +88,7 @@ function TokenShape({ token, canControl, tokenSize, imageBounds, stageRef, onDra
       y={token.y}
       draggable={draggable}
       onDragStart={() => {
+        onDragStart(token.id);
         if (stageRef.current) {
           stageRef.current.container().style.cursor = "grabbing";
         }
@@ -184,7 +188,7 @@ function useImageSize(url: string | null) {
 // ---------------------------------------------------------------------------
 // MapCanvas
 // ---------------------------------------------------------------------------
-export default function MapCanvas({ broadcastTokenMove }: MapCanvasProps) {
+export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart, broadcastTokenDragEnd, lockedBy }: MapCanvasProps) {
   useAuth();
 
   const stageRef = useRef<Konva.Stage>(null);
@@ -297,6 +301,7 @@ export default function MapCanvas({ broadcastTokenMove }: MapCanvasProps) {
 
   const handleDragEnd = async (id: string, x: number, y: number) => {
     updateTokenPosition(id, x, y);
+    broadcastTokenDragEnd(id); // release drag lock for other clients
     const supabase = createClient();
     await supabase.from("tokens").update({ x, y }).eq("id", id);
   };
@@ -371,16 +376,22 @@ export default function MapCanvas({ broadcastTokenMove }: MapCanvasProps) {
         <Layer>
           {tokens.map((token) => {
             const effectiveSize = token.size ?? DEFAULT_TOKEN_SIZE;
+            const controllable = canControl(token.owner_id);
+            // Lock admin out while the token owner is actively dragging this token
+            const isLockedByOwner = token.owner_id !== null && lockedBy[token.id] === token.owner_id;
+            const isDraggable = controllable && !(isOwner && isLockedByOwner);
             return (
               <TokenShape
                 key={token.id}
                 token={token}
-                canControl={canControl(token.owner_id)}
+                canControl={controllable}
+                draggable={isDraggable}
                 tokenSize={effectiveSize}
                 imageBounds={imageBounds}
                 stageRef={stageRef}
                 onDragMove={handleDragMove}
                 onDragEnd={handleDragEnd}
+                onDragStart={broadcastTokenDragStart}
                 onHpChange={handleHpChange}
               />
             );

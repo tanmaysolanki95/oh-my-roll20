@@ -36,7 +36,9 @@ export interface DiceRoll {
 export type BroadcastEvent =
   | { type: "token_move"; token_id: string; x: number; y: number }
   | { type: "dice_roll"; player_name: string; expression: string; result: number; breakdown: string }
-  | { type: "session_ended" };
+  | { type: "session_ended" }
+  | { type: "token_drag_start"; token_id: string; user_id: string }
+  | { type: "token_drag_end"; token_id: string; user_id: string };
 
 export interface PresenceState {
   user_id: string;

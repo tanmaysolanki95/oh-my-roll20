@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -10,6 +10,8 @@ import type { Token, DiceRoll, BroadcastEvent, Session } from "@/types";
 export function useRealtimeSession(sessionId: string) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const router = useRouter();
+  // token_id → user_id of whoever is currently dragging that token
+  const [lockedBy, setLockedBy] = useState<Record<string, string>>({});
   const {
     setTokens,
     upsertToken,
@@ -59,6 +61,26 @@ export function useRealtimeSession(sessionId: string) {
       "broadcast",
       { event: "session_ended" },
       () => { router.push("/"); }
+    );
+
+    // --- Broadcast: token drag lock ---
+    channel.on(
+      "broadcast",
+      { event: "token_drag_start" },
+      ({ payload }: { payload: Extract<BroadcastEvent, { type: "token_drag_start" }> }) => {
+        setLockedBy((prev) => ({ ...prev, [payload.token_id]: payload.user_id }));
+      }
+    );
+    channel.on(
+      "broadcast",
+      { event: "token_drag_end" },
+      ({ payload }: { payload: Extract<BroadcastEvent, { type: "token_drag_end" }> }) => {
+        setLockedBy((prev) => {
+          const next = { ...prev };
+          delete next[payload.token_id];
+          return next;
+        });
+      }
     );
 
     // --- Broadcast: dice roll ---
@@ -149,5 +171,23 @@ export function useRealtimeSession(sessionId: string) {
     });
   };
 
-  return { broadcastTokenMove, broadcastSessionEnd };
+  const broadcastTokenDragStart = (token_id: string) => {
+    if (!userId) return;
+    channelRef.current?.send({
+      type: "broadcast",
+      event: "token_drag_start",
+      payload: { type: "token_drag_start", token_id, user_id: userId },
+    });
+  };
+
+  const broadcastTokenDragEnd = (token_id: string) => {
+    if (!userId) return;
+    channelRef.current?.send({
+      type: "broadcast",
+      event: "token_drag_end",
+      payload: { type: "token_drag_end", token_id, user_id: userId },
+    });
+  };
+
+  return { broadcastTokenMove, broadcastSessionEnd, broadcastTokenDragStart, broadcastTokenDragEnd, lockedBy };
 }
