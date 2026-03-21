@@ -68,7 +68,10 @@ export default function MapCanvas({
   const handleDragEnd = async (id: string, x: number, y: number) => {
     updateTokenPosition(id, x, y);
     broadcastTokenDragEnd(id);
-    await createClient().from("tokens").update({ x, y }).eq("id", id);
+    // Include size so the postgres_changes echo doesn't overwrite an in-flight size write
+    // with a stale value from the DB (race between the size slider and this position update).
+    const token = tokens.find(t => t.id === id);
+    await createClient().from("tokens").update({ x, y, size: token?.size ?? null }).eq("id", id);
   };
 
   // Grid lines (memoized)
