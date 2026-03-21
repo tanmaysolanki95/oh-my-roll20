@@ -10,6 +10,7 @@ const COLORS = [
   "#a855f7", "#f97316", "#06b6d4", "#ec4899",
 ];
 
+const DEFAULT_TOKEN_SIZE = 56;
 const MIN_TOKEN_SIZE = 24;
 const MAX_TOKEN_SIZE = 120;
 
@@ -61,6 +62,8 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
         max_hp: maxHp,
         x: spawn.x,
         y: spawn.y,
+        // Stamp explicit size so changing the session default never retroactively resizes this token
+        size: session?.token_size ?? DEFAULT_TOKEN_SIZE,
         // DM adds unclaimed tokens (null); players automatically own their tokens
         ...(!isOwner && userId ? { owner_id: userId } : {}),
       })

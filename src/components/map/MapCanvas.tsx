@@ -370,8 +370,7 @@ export default function MapCanvas({ broadcastTokenMove }: MapCanvasProps) {
         </Layer>
         <Layer>
           {tokens.map((token) => {
-            const defaultSize = pendingTokenSize ?? session?.token_size ?? DEFAULT_TOKEN_SIZE;
-            const effectiveSize = token.size ?? defaultSize;
+            const effectiveSize = token.size ?? DEFAULT_TOKEN_SIZE;
             return (
               <TokenShape
                 key={token.id}
