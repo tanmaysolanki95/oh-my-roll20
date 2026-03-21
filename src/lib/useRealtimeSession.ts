@@ -110,7 +110,9 @@ export function useRealtimeSession(sessionId: string) {
         ({ new: token }) => { if ((token as Token).session_id === sessionId) upsertToken(token as Token); }
       )
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "tokens" },
-        ({ old: token }) => { if ((token as Token).session_id === sessionId) removeToken((token as Token).id); }
+        // Note: Supabase only includes the PK in `old` by default (REPLICA IDENTITY DEFAULT),
+        // so session_id is absent — just remove by id, which is a no-op if not in this session's store.
+        ({ old: token }) => { removeToken((token as Token).id); }
       );
 
     // --- Postgres Changes: session (map URL, grid size) ---

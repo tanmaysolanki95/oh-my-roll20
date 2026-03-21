@@ -224,27 +224,28 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                       ↩
                     </button>
                   )}
-                  {/* Visibility toggle + Delete — DM only */}
+                  {/* Visibility toggle — DM only */}
                   {isOwner && (
-                    <>
-                      <button
-                        onClick={() => toggleVisible(token)}
-                        className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
-                          token.visible
-                            ? "text-gray-500 hover:text-white hover:bg-gray-700"
-                            : "text-yellow-400 bg-gray-700 hover:text-yellow-300"
-                        }`}
-                        title={token.visible ? "Hide from players" : "Show to players"}
-                      >
-                        {token.visible ? "Hide" : "Show"}
-                      </button>
-                      <button
-                        onClick={() => removeToken(token.id)}
-                        className="text-gray-600 hover:text-red-400 text-xs transition-colors"
-                      >
-                        ✕
-                      </button>
-                    </>
+                    <button
+                      onClick={() => toggleVisible(token)}
+                      className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
+                        token.visible
+                          ? "text-gray-500 hover:text-white hover:bg-gray-700"
+                          : "text-yellow-400 bg-gray-700 hover:text-yellow-300"
+                      }`}
+                      title={token.visible ? "Hide from players" : "Show to players"}
+                    >
+                      {token.visible ? "Hide" : "Show"}
+                    </button>
+                  )}
+                  {/* Delete — DM or token owner */}
+                  {(isOwner || mine) && (
+                    <button
+                      onClick={() => removeToken(token.id)}
+                      className="text-gray-600 hover:text-red-400 text-xs transition-colors"
+                    >
+                      ✕
+                    </button>
                   )}
                 </div>
               </div>
