@@ -2,7 +2,7 @@
 
 :root {
   --background: #050202;
-  --foreground: #fecaca;
+  --foreground: #f87171;
 }
 
 @theme inline {
@@ -25,10 +25,10 @@
   --theme-accent-dim:      #7f1d1d;
   --theme-accent-glow:     rgba(185,28,28,0.35);
   --theme-text-primary:    #fecaca;
-  --theme-text-secondary:  #7f1d1d;
-  --theme-text-muted:      #5a1010;
-  --theme-border:          rgba(185,28,28,0.12);
-  --theme-border-accent:   rgba(220,38,38,0.5);
+  --theme-text-secondary:  #f87171;
+  --theme-text-muted:      #b45252;
+  --theme-border:          rgba(185,28,28,0.18);
+  --theme-border-accent:   rgba(220,38,38,0.55);
   --theme-font-display:    var(--font-cinzel-loaded), serif;
   --theme-font-body:       var(--font-crimson-loaded), serif;
   --theme-tab-border:      #dc2626;
@@ -43,11 +43,11 @@
   --theme-accent:          #c9930a;
   --theme-accent-dim:      #8b6914;
   --theme-accent-glow:     rgba(180,130,20,0.3);
-  --theme-text-primary:    #d4a843;
-  --theme-text-secondary:  #8b6914;
-  --theme-text-muted:      #6a4a14;
-  --theme-border:          rgba(139,105,20,0.18);
-  --theme-border-accent:   rgba(200,150,20,0.5);
+  --theme-text-primary:    #f0d080;
+  --theme-text-secondary:  #e8b84a;
+  --theme-text-muted:      #a87830;
+  --theme-border:          rgba(139,105,20,0.22);
+  --theme-border-accent:   rgba(200,150,20,0.6);
   --theme-font-display:    var(--font-cinzel-loaded), serif;
   --theme-font-body:       var(--font-crimson-loaded), serif;
   --theme-tab-border:      #c9930a;
@@ -62,11 +62,11 @@
   --theme-accent:          #7c3aed;
   --theme-accent-dim:      #4c1d95;
   --theme-accent-glow:     rgba(109,40,217,0.35);
-  --theme-text-primary:    #c4b5fd;
-  --theme-text-secondary:  #6d3aaa;
-  --theme-text-muted:      #3d2880;
-  --theme-border:          rgba(109,40,217,0.15);
-  --theme-border-accent:   rgba(109,40,217,0.55);
+  --theme-text-primary:    #e2d9ff;
+  --theme-text-secondary:  #a78bfa;
+  --theme-text-muted:      #7c5fc4;
+  --theme-border:          rgba(109,40,217,0.2);
+  --theme-border-accent:   rgba(109,40,217,0.6);
   --theme-font-display:    var(--font-rajdhani-loaded), sans-serif;
   --theme-font-body:       var(--font-exo2-loaded), sans-serif;
   --theme-tab-border:      #7c3aed;
