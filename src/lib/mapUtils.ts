@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Map constants — shared across MapCanvas and its sub-components
 // ---------------------------------------------------------------------------
-export const GRID_COLOR = "rgba(255,255,255,0.15)";
+export const GRID_COLOR = "rgba(0,0,0,0.45)";
 export const DEFAULT_TOKEN_SIZE = 56;
 export const MIN_TOKEN_SIZE = 24;
 export const MAX_TOKEN_SIZE = 300;

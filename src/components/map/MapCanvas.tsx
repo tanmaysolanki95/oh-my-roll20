@@ -72,17 +72,19 @@ export default function MapCanvas({
   };
 
   // Grid lines (memoized)
+  const gridEnabled = session?.grid_enabled ?? true;
   const gridSize = session?.grid_size ?? 60;
   const gridWidth = mapUrl && imageSize.width > 0 ? imageSize.width : VIRTUAL_SIZE;
   const gridHeight = mapUrl && imageSize.height > 0 ? imageSize.height : VIRTUAL_SIZE;
   const gridLines = useMemo(() => {
+    if (!gridEnabled) return [];
     const lines: React.ReactElement[] = [];
     for (let x = 0; x <= gridWidth; x += gridSize)
       lines.push(<Line key={`v${x}`} points={[x, 0, x, gridHeight]} stroke={GRID_COLOR} strokeWidth={1} />);
     for (let y = 0; y <= gridHeight; y += gridSize)
       lines.push(<Line key={`h${y}`} points={[0, y, gridWidth, y]} stroke={GRID_COLOR} strokeWidth={1} />);
     return lines;
-  }, [gridSize, gridWidth, gridHeight]);
+  }, [gridEnabled, gridSize, gridWidth, gridHeight]);
 
   return (
     <div ref={zoom.containerRef} className="w-full h-full bg-gray-900 rounded-lg overflow-hidden relative">

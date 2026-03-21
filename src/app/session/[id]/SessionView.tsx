@@ -79,6 +79,14 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     await createClient().from("sessions").update({ grid_size: newSize }).eq("id", sessionId);
   };
 
+  const toggleGrid = async () => {
+    const current = useSessionStore.getState().session;
+    if (!current || !isOwner) return;
+    const enabled = !(current.grid_enabled ?? true);
+    setSession({ ...current, grid_enabled: enabled });
+    await createClient().from("sessions").update({ grid_enabled: enabled }).eq("id", sessionId);
+  };
+
   const toggleFog = async () => {
     const current = useSessionStore.getState().session;
     if (!current || !isOwner) return;
@@ -351,15 +359,32 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                   </div>
                 </div>
 
-                {/* Grid cell size */}
+                {/* Grid */}
                 <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
-                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">⊞ Grid Cell Size</div>
-                  <p className="text-[11px] text-gray-500 mb-2">Width of each grid square in canvas pixels. Adjust to match your map's grid.</p>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => changeGridSize(-10)} className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors">−</button>
-                    <span className="text-base font-bold text-gray-100 tabular-nums w-12 text-center">{session?.grid_size ?? 60}px</span>
-                    <button onClick={() => changeGridSize(10)} className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors">+</button>
-                  </div>
+                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">⊞ Grid</div>
+                  <p className="text-[11px] text-gray-500 mb-3">Toggle the grid overlay and adjust the cell size to match your map.</p>
+
+                  {/* On/Off toggle */}
+                  <button
+                    onClick={toggleGrid}
+                    className={`w-full py-1.5 rounded-lg text-xs font-bold mb-3 transition-colors ${
+                      (session?.grid_enabled ?? true)
+                        ? "bg-indigo-700 hover:bg-indigo-600 text-white"
+                        : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                    }`}
+                  >
+                    {(session?.grid_enabled ?? true) ? "Grid is ON" : "Grid is OFF"}
+                  </button>
+
+                  {/* Cell size stepper */}
+                  {(session?.grid_enabled ?? true) && (
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => changeGridSize(-10)} className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors">−</button>
+                      <span className="text-base font-bold text-gray-100 tabular-nums w-12 text-center">{session?.grid_size ?? 60}px</span>
+                      <button onClick={() => changeGridSize(10)} className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors">+</button>
+                      <span className="text-xs text-gray-500">cell size</span>
+                    </div>
+                  )}
                 </div>
 
               </div>
