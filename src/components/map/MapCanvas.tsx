@@ -477,24 +477,46 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
           {gridLines}
         </Layer>
         {/* Fog of war layer — between background and tokens */}
-        {session?.fog_enabled && (
-          <Layer listening={false} opacity={isOwner ? 0.45 : 0.92}>
-            <Rect width={gridWidth} height={gridHeight} fill="black" />
-            {(session.fog_shapes ?? []).map((shape, i) =>
-              shape.type === "reveal"
-                ? <Rect key={i} x={shape.x} y={shape.y} width={shape.w} height={shape.h}
-                    fill="black" globalCompositeOperation="destination-out" />
-                : <Rect key={i} x={shape.x} y={shape.y} width={shape.w} height={shape.h}
-                    fill="black" globalCompositeOperation="source-over" />
-            )}
-            {/* Live preview while painting */}
-            {fogPreview && (
-              fogPreview.type === "reveal"
-                ? <Rect x={fogPreview.x} y={fogPreview.y} width={fogPreview.w} height={fogPreview.h}
-                    fill="black" globalCompositeOperation="destination-out" />
-                : <Rect x={fogPreview.x} y={fogPreview.y} width={fogPreview.w} height={fogPreview.h}
-                    fill="black" globalCompositeOperation="source-over" />
-            )}
+        {session?.fog_enabled && (() => {
+          // Admin sees a distinct indigo tint at 65% so they can still read the map.
+          // Players see fully opaque black — nothing bleeds through.
+          const fogFill = isOwner ? "#1e1b4b" : "black";
+          const fogOpacity = isOwner ? 0.65 : 1;
+          return (
+            <Layer listening={false} opacity={fogOpacity}>
+              <Rect width={gridWidth} height={gridHeight} fill={fogFill} />
+              {(session.fog_shapes ?? []).map((shape, i) =>
+                shape.type === "reveal"
+                  ? <Rect key={i} x={shape.x} y={shape.y} width={shape.w} height={shape.h}
+                      fill="black" globalCompositeOperation="destination-out" />
+                  : <Rect key={i} x={shape.x} y={shape.y} width={shape.w} height={shape.h}
+                      fill={fogFill} globalCompositeOperation="source-over" />
+              )}
+              {/* Live preview while painting */}
+              {fogPreview && (
+                fogPreview.type === "reveal"
+                  ? <Rect x={fogPreview.x} y={fogPreview.y} width={fogPreview.w} height={fogPreview.h}
+                      fill="black" globalCompositeOperation="destination-out" />
+                  : <Rect x={fogPreview.x} y={fogPreview.y} width={fogPreview.w} height={fogPreview.h}
+                      fill={fogFill} globalCompositeOperation="source-over" />
+              )}
+            </Layer>
+          );
+        })()}
+
+        {/* Admin overlay: green outlines around revealed areas so boundaries are obvious */}
+        {isOwner && session?.fog_enabled && (
+          <Layer listening={false}>
+            {(session.fog_shapes ?? []).filter(s => s.type === "reveal").map((shape, i) => (
+              <Rect
+                key={i}
+                x={shape.x} y={shape.y}
+                width={shape.w} height={shape.h}
+                fill="transparent"
+                stroke="#22c55e"
+                strokeWidth={1.5 / stageScale}
+              />
+            ))}
           </Layer>
         )}
 
