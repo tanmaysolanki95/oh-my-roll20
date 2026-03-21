@@ -26,6 +26,9 @@ export default function DiceToast() {
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setVisible(false), 4000);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestId]);
 
