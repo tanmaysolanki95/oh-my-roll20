@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSessionStore } from "@/store/session";
-import { parseDiceExpression } from "@/lib/dice";
+import { parseCompoundExpression } from "@/lib/dice";
 import type { DiceRoll } from "@/types";
 
 export default function DiceToast() {
@@ -32,11 +32,11 @@ export default function DiceToast() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestId]);
 
-  // Detect nat max / nat 1 — only for single-die rolls with no modifier
-  const parsed = roll ? parseDiceExpression(roll.expression) : null;
-  const isSimple = parsed !== null && parsed.count === 1 && parsed.modifier === 0;
-  const isNatMax = isSimple && roll !== null && roll.result === parsed!.sides;
-  const isNatMin = isSimple && roll !== null && roll.result === 1 && !isNatMax;
+  // Detect nat max / nat 1 — only for simple single-die rolls (1dX, no other terms)
+  const terms = roll ? parseCompoundExpression(roll.expression) : null;
+  const simpleTerm = terms?.length === 1 && terms[0].kind === "dice" && terms[0].count === 1 ? terms[0] : null;
+  const isNatMax = simpleTerm !== null && roll !== null && roll.result === simpleTerm.sides;
+  const isNatMin = simpleTerm !== null && roll !== null && roll.result === 1 && !isNatMax;
 
   if (!roll) return null;
 
@@ -78,7 +78,7 @@ export default function DiceToast() {
         {/* Nat label */}
         {isNatMax && (
           <div className="text-[10px] font-bold text-yellow-300 tracking-widest uppercase mt-0.5">
-            Natural {parsed!.sides} ✨
+            Natural {simpleTerm!.sides} ✨
           </div>
         )}
         {isNatMin && (

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { parseDiceExpression, rollDice, formatExpression, QUICK_DICE } from "@/lib/dice";
+import { parseCompoundExpression, rollCompound, formatCompoundExpression, QUICK_DICE } from "@/lib/dice";
 import { useSessionStore } from "@/store/session";
+import type { TermResult } from "@/types";
 
 interface DiceRollerProps {
   sessionId: string;
@@ -18,6 +19,23 @@ function relativeTime(iso: string): string {
   return `${Math.floor(diff / 3600)}h`;
 }
 
+/** Scan termResults for nat-max/nat-min on single-die terms.
+ *  Nat max takes priority. Tiebreak: first qualifying term wins. */
+function detectNatFlags(termResults: TermResult[]): { natMaxDie: number | null; natMinDie: number | null } {
+  let natMaxDie: number | null = null;
+  let natMinDie: number | null = null;
+
+  for (const tr of termResults) {
+    if (tr.term.kind !== "dice" || tr.term.count !== 1) continue;
+    const roll = tr.rolls[0];
+    const sides = tr.term.sides;
+    if (roll === sides && natMaxDie === null) natMaxDie = sides;
+    if (roll === 1    && natMinDie === null) natMinDie = sides;
+  }
+
+  return { natMaxDie, natMinDie: natMaxDie !== null ? null : natMinDie };
+}
+
 export default function DiceRoller({ sessionId, onCollapse, broadcastDiceRoll }: DiceRollerProps) {
   const supabase = createClient();
   const { diceLog, playerName, addDiceRoll } = useSessionStore();
@@ -27,22 +45,23 @@ export default function DiceRoller({ sessionId, onCollapse, broadcastDiceRoll }:
     expression: string;
     result: number;
     breakdown: string;
-    sides: number;
-    count: number;
+    natMaxDie: number | null;
+    natMinDie: number | null;
   } | null>(null);
 
   const roll = async (expression: string) => {
-    const parsed = parseDiceExpression(expression);
-    if (!parsed) {
-      setError(`Can't parse "${expression}". Try: 2d6+3`);
+    const terms = parseCompoundExpression(expression);
+    if (!terms) {
+      setError(`Can't parse "${expression}". Try: 2d6+3 or 1d20+1d4-2`);
       return;
     }
     setError("");
 
-    const { result, breakdown } = rollDice(parsed);
-    const formattedExpr = formatExpression(parsed);
+    const { result, breakdown, termResults } = rollCompound(terms);
+    const formattedExpr = formatCompoundExpression(terms);
+    const { natMaxDie, natMinDie } = detectNatFlags(termResults);
 
-    setLastResult({ expression: formattedExpr, result, breakdown, sides: parsed.sides, count: parsed.count });
+    setLastResult({ expression: formattedExpr, result, breakdown, natMaxDie, natMinDie });
 
     const rollEntry = {
       id: crypto.randomUUID(),
@@ -74,9 +93,6 @@ export default function DiceRoller({ sessionId, onCollapse, broadcastDiceRoll }:
       breakdown: rollEntry.breakdown,
     });
   };
-
-  const isNatMax = lastResult !== null && lastResult.count === 1 && lastResult.result === lastResult.sides;
-  const isNatMin = lastResult !== null && lastResult.count === 1 && lastResult.result === 1;
 
   return (
     <div className="flex flex-col gap-3 h-full">
@@ -137,7 +153,7 @@ export default function DiceRoller({ sessionId, onCollapse, broadcastDiceRoll }:
           value={expr}
           onChange={(e) => setExpr(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && roll(expr)}
-          placeholder="e.g. 3d20+10"
+          placeholder="e.g. 5d20+1d4-2"
           className="flex-1 text-sm px-3 py-1.5 rounded-lg focus:outline-none font-mono"
           style={{
             background: "var(--theme-bg-panel)",
@@ -177,17 +193,17 @@ export default function DiceRoller({ sessionId, onCollapse, broadcastDiceRoll }:
             className="text-5xl font-black leading-none tabular-nums"
             style={{
               color: "var(--theme-text-primary)",
-              textShadow: isNatMax ? "0 0 20px var(--theme-accent-glow)" : undefined,
+              textShadow: lastResult.natMaxDie !== null ? "0 0 20px var(--theme-accent-glow)" : undefined,
             }}
           >
             {lastResult.result}
           </div>
-          {isNatMax && (
+          {lastResult.natMaxDie !== null && (
             <div className="text-[10px] font-bold text-yellow-300 tracking-widest uppercase mt-1">
-              Natural {lastResult.sides} ✨
+              Natural {lastResult.natMaxDie} ✨
             </div>
           )}
-          {isNatMin && !isNatMax && (
+          {lastResult.natMinDie !== null && (
             <div className="text-[10px] font-bold text-red-400 tracking-widest uppercase mt-1">
               Natural 1 💀
             </div>
