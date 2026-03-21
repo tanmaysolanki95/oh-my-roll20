@@ -14,6 +14,7 @@ export interface Session {
   token_size: number;
   fog_enabled: boolean;
   fog_shapes: FogShape[];
+  fog_history: FogShape[][];
   grid_enabled: boolean;
   join_code: string;
   max_tokens_per_player: number;
