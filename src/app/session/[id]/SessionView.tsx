@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeSession } from "@/lib/useRealtimeSession";
 import { useSessionStore } from "@/store/session";
@@ -22,14 +23,21 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   useAuth();
 
   const { setSession, session, userId } = useSessionStore();
-  const { broadcastTokenMove } = useRealtimeSession(sessionId);
+  const { broadcastTokenMove, broadcastSessionEnd } = useRealtimeSession(sessionId);
   const [mapError, setMapError] = useState("");
+  const router = useRouter();
 
   const isOwner = !!userId && session?.owner_id === userId;
 
   useEffect(() => {
     setSession(initialSession);
   }, [initialSession, setSession]);
+
+  const endSession = async () => {
+    broadcastSessionEnd();
+    await createClient().from("sessions").delete().eq("id", sessionId);
+    router.push("/");
+  };
 
   const changeGridSize = async (delta: number) => {
     const current = useSessionStore.getState().session;
@@ -97,23 +105,33 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
         {/* Right sidebar */}
         <div className="w-64 shrink-0 bg-gray-900 border-l border-gray-800 flex flex-col">
-          {/* Grid size — DM only */}
+          {/* DM-only controls */}
           {isOwner && (
-            <div className="px-3 py-2 border-b border-gray-800 flex items-center gap-2">
-              <span className="text-xs text-gray-500 uppercase tracking-wider">Grid</span>
-              <div className="flex items-center gap-1 ml-auto">
-                <button
-                  onClick={() => changeGridSize(-10)}
-                  className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
-                >−</button>
-                <span className="text-xs text-gray-300 tabular-nums w-8 text-center">
-                  {session?.grid_size ?? 60}px
-                </span>
-                <button
-                  onClick={() => changeGridSize(10)}
-                  className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
-                >+</button>
+            <div className="px-3 py-2 border-b border-gray-800 space-y-2">
+              {/* Grid size */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 uppercase tracking-wider">Grid</span>
+                <div className="flex items-center gap-1 ml-auto">
+                  <button
+                    onClick={() => changeGridSize(-10)}
+                    className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                  >−</button>
+                  <span className="text-xs text-gray-300 tabular-nums w-8 text-center">
+                    {session?.grid_size ?? 60}px
+                  </span>
+                  <button
+                    onClick={() => changeGridSize(10)}
+                    className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                  >+</button>
+                </div>
               </div>
+              {/* End session */}
+              <button
+                onClick={endSession}
+                className="w-full py-1 text-xs font-semibold text-red-400 hover:text-white hover:bg-red-700 border border-red-800 hover:border-red-700 rounded transition-colors"
+              >
+                End Session
+              </button>
             </div>
           )}
 

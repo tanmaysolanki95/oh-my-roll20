@@ -192,7 +192,8 @@ export default function MapCanvas({ broadcastTokenMove }: MapCanvasProps) {
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [stageScale, setStageScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
-  const [tokenSize, setTokenSize] = useState(DEFAULT_TOKEN_SIZE);
+  // Pending token size: local preview while DM drags the slider (avoids a DB write per pixel)
+  const [pendingTokenSize, setPendingTokenSize] = useState<number | null>(null);
 
   // Refs for values used in event handlers (avoid stale closures)
   const stageScaleRef = useRef(stageScale);
@@ -209,7 +210,7 @@ export default function MapCanvas({ broadcastTokenMove }: MapCanvasProps) {
   const panStart = useRef({ x: 0, y: 0 });
   const panOrigin = useRef({ x: 0, y: 0 });
 
-  const { session, tokens, updateTokenPosition, upsertToken, userId } = useSessionStore();
+  const { session, tokens, updateTokenPosition, upsertToken, setSession, userId } = useSessionStore();
 
   const isOwner = !!userId && session?.owner_id === userId;
   const canControl = (tokenOwnerId: string | null) => isOwner || tokenOwnerId === userId;
@@ -368,50 +369,68 @@ export default function MapCanvas({ broadcastTokenMove }: MapCanvasProps) {
           {gridLines}
         </Layer>
         <Layer>
-          {tokens.map((token) => (
-            <TokenShape
-              key={token.id}
-              token={token}
-              canControl={canControl(token.owner_id)}
-              tokenSize={tokenSize}
-              imageBounds={imageBounds}
-              stageRef={stageRef}
-              onDragMove={handleDragMove}
-              onDragEnd={handleDragEnd}
-              onHpChange={handleHpChange}
-            />
-          ))}
+          {tokens.map((token) => {
+            const defaultSize = pendingTokenSize ?? session?.token_size ?? DEFAULT_TOKEN_SIZE;
+            const effectiveSize = token.size ?? defaultSize;
+            return (
+              <TokenShape
+                key={token.id}
+                token={token}
+                canControl={canControl(token.owner_id)}
+                tokenSize={effectiveSize}
+                imageBounds={imageBounds}
+                stageRef={stageRef}
+                onDragMove={handleDragMove}
+                onDragEnd={handleDragEnd}
+                onHpChange={handleHpChange}
+              />
+            );
+          })}
         </Layer>
       </Stage>
 
       {/* Map controls overlay — bottom-right */}
       <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-gray-950/80 backdrop-blur-sm border border-gray-700 rounded-lg px-3 py-2">
-        {/* Token size slider */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">Token</span>
-          <button
-            onClick={() => setTokenSize((s) => Math.max(MIN_TOKEN_SIZE, s - 4))}
-            className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-700 text-sm transition-colors"
-          >
-            −
-          </button>
-          <input
-            type="range"
-            min={MIN_TOKEN_SIZE}
-            max={MAX_TOKEN_SIZE}
-            value={tokenSize}
-            onChange={(e) => setTokenSize(Number(e.target.value))}
-            className="w-20 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-          />
-          <button
-            onClick={() => setTokenSize((s) => Math.min(MAX_TOKEN_SIZE, s + 4))}
-            className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-700 text-sm transition-colors"
-          >
-            +
-          </button>
-        </div>
-
-        <div className="w-px h-6 bg-gray-700" />
+        {/* Default token size — DM only */}
+        {isOwner && session && (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">Token</span>
+              <button
+                onClick={async () => {
+                  const newSize = Math.max(MIN_TOKEN_SIZE, (session.token_size) - 4);
+                  setSession({ ...session, token_size: newSize });
+                  await createClient().from("sessions").update({ token_size: newSize }).eq("id", session.id);
+                }}
+                className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-700 text-sm transition-colors"
+              >−</button>
+              <input
+                type="range"
+                min={MIN_TOKEN_SIZE}
+                max={MAX_TOKEN_SIZE}
+                value={pendingTokenSize ?? session.token_size}
+                onChange={(e) => setPendingTokenSize(Number(e.target.value))}
+                onPointerUp={async () => {
+                  if (pendingTokenSize === null) return;
+                  const newSize = pendingTokenSize;
+                  setSession({ ...session, token_size: newSize });
+                  setPendingTokenSize(null);
+                  await createClient().from("sessions").update({ token_size: newSize }).eq("id", session.id);
+                }}
+                className="w-20 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+              />
+              <button
+                onClick={async () => {
+                  const newSize = Math.min(MAX_TOKEN_SIZE, (session.token_size) + 4);
+                  setSession({ ...session, token_size: newSize });
+                  await createClient().from("sessions").update({ token_size: newSize }).eq("id", session.id);
+                }}
+                className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-700 text-sm transition-colors"
+              >+</button>
+            </div>
+            <div className="w-px h-6 bg-gray-700" />
+          </>
+        )}
 
         {/* Zoom buttons */}
         <div className="flex items-center gap-1">

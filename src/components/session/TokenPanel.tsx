@@ -3,11 +3,15 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useSessionStore } from "@/store/session";
+import type { Token } from "@/types";
 
 const COLORS = [
   "#3b82f6", "#ef4444", "#22c55e", "#eab308",
   "#a855f7", "#f97316", "#06b6d4", "#ec4899",
 ];
+
+const MIN_TOKEN_SIZE = 24;
+const MAX_TOKEN_SIZE = 120;
 
 interface TokenPanelProps {
   sessionId: string;
@@ -47,7 +51,6 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
     setAddError("");
     const spawn = await getSpawnPosition();
     const supabase = createClient();
-    // Use .select() to get the full inserted row back (with server-generated id etc.)
     const { data, error } = await supabase
       .from("tokens")
       .insert({
@@ -58,11 +61,12 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
         max_hp: maxHp,
         x: spawn.x,
         y: spawn.y,
+        // DM adds unclaimed tokens (null); players automatically own their tokens
+        ...(!isOwner && userId ? { owner_id: userId } : {}),
       })
       .select()
       .single();
     if (error) { setAddError(error.message); return; }
-    // Update store immediately — don't rely solely on Postgres Changes
     if (data) upsertToken(data);
     setName("");
     setMaxHp(10);
@@ -83,6 +87,14 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
     await supabase.from("tokens").update({ hp: clamped }).eq("id", id);
   };
 
+  const updateSize = async (token: Token, delta: number) => {
+    const current = token.size ?? session?.token_size ?? 56;
+    const newSize = Math.max(MIN_TOKEN_SIZE, Math.min(MAX_TOKEN_SIZE, current + delta));
+    upsertToken({ ...token, size: newSize }); // optimistic
+    const supabase = createClient();
+    await supabase.from("tokens").update({ size: newSize }).eq("id", token.id);
+  };
+
   const claimToken = async (id: string) => {
     const supabase = createClient();
     await supabase.from("tokens").update({ owner_id: userId }).eq("id", id);
@@ -93,11 +105,14 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
     await supabase.from("tokens").update({ owner_id: null }).eq("id", id);
   };
 
+  // Any authenticated user can add a token
+  const canAdd = isOwner || !!userId;
+
   return (
     <div className="flex flex-col gap-3 h-full">
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Tokens</span>
-        {isOwner && (
+        {canAdd && (
           <button
             onClick={() => setAdding((v) => !v)}
             className="text-xs px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
@@ -107,8 +122,8 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
         )}
       </div>
 
-      {/* Add token form — DM only */}
-      {isOwner && adding && (
+      {/* Add token form */}
+      {canAdd && adding && (
         <div className="bg-gray-800 rounded-lg p-3 space-y-2">
           <input
             autoFocus
@@ -158,6 +173,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
           const mine = token.owner_id === userId;
           const controllable = canControl(token.owner_id);
           const unclaimed = token.owner_id === null;
+          const effectiveSize = token.size ?? session?.token_size ?? 56;
 
           return (
             <div
@@ -252,6 +268,22 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                   <div className="text-xs text-gray-600 text-center tabular-nums mt-0.5">
                     {token.hp} / {token.max_hp}
                   </div>
+                </div>
+              )}
+
+              {/* Size controls — token owner or DM */}
+              {controllable && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Size</span>
+                  <button
+                    onClick={() => updateSize(token, -4)}
+                    className="w-5 h-5 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition-colors"
+                  >−</button>
+                  <span className="text-xs text-gray-400 tabular-nums w-6 text-center">{effectiveSize}</span>
+                  <button
+                    onClick={() => updateSize(token, 4)}
+                    className="w-5 h-5 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition-colors"
+                  >+</button>
                 </div>
               )}
             </div>

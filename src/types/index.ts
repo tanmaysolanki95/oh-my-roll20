@@ -3,6 +3,7 @@ export interface Session {
   name: string;
   map_url: string | null;
   grid_size: number;
+  token_size: number;
   owner_id: string;
   created_at: string;
 }
@@ -18,6 +19,7 @@ export interface Token {
   y: number;
   image_url: string | null;
   owner_id: string | null; // null = unclaimed; set when a player claims the token
+  size: number | null;     // null = inherit session token_size
 }
 
 export interface DiceRoll {
@@ -33,7 +35,8 @@ export interface DiceRoll {
 // Realtime broadcast event payloads
 export type BroadcastEvent =
   | { type: "token_move"; token_id: string; x: number; y: number }
-  | { type: "dice_roll"; player_name: string; expression: string; result: number; breakdown: string };
+  | { type: "dice_roll"; player_name: string; expression: string; result: number; breakdown: string }
+  | { type: "session_ended" };
 
 export interface PresenceState {
   user_id: string;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { useSessionStore } from "@/store/session";
@@ -8,6 +9,7 @@ import type { Token, DiceRoll, BroadcastEvent, Session } from "@/types";
 
 export function useRealtimeSession(sessionId: string) {
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const router = useRouter();
   const {
     setTokens,
     upsertToken,
@@ -50,6 +52,13 @@ export function useRealtimeSession(sessionId: string) {
       ({ payload }: { payload: Extract<BroadcastEvent, { type: "token_move" }> }) => {
         updateTokenPosition(payload.token_id, payload.x, payload.y);
       }
+    );
+
+    // --- Broadcast: session ended (DM kicked everyone out) ---
+    channel.on(
+      "broadcast",
+      { event: "session_ended" },
+      () => { router.push("/"); }
     );
 
     // --- Broadcast: dice roll ---
@@ -132,5 +141,13 @@ export function useRealtimeSession(sessionId: string) {
     });
   };
 
-  return { broadcastTokenMove };
+  const broadcastSessionEnd = () => {
+    channelRef.current?.send({
+      type: "broadcast",
+      event: "session_ended",
+      payload: { type: "session_ended" },
+    });
+  };
+
+  return { broadcastTokenMove, broadcastSessionEnd };
 }
