@@ -54,6 +54,7 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
 
   // Token size override for DM controls
   const [pendingTokenSize, setPendingTokenSize] = useState<number | null>(null);
+  const [tokenSizeScope, setTokenSizeScope] = useState<"all" | "players">("all");
 
   // Token handlers
   const handleDragMove = (id: string, x: number, y: number) => {
@@ -71,12 +72,16 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
     if (!s) return;
     setSession({ ...s, token_size: newSize });
     const supabase = createClient();
-    // Resize all existing tokens in this session + update the session default
     const currentTokens = useSessionStore.getState().tokens;
-    currentTokens.forEach(t => upsertToken({ ...t, size: newSize }));
+    const inScope = (t: { owner_id: string | null }) =>
+      tokenSizeScope === "all" || t.owner_id !== null;
+    currentTokens.filter(inScope).forEach(t => upsertToken({ ...t, size: newSize }));
+    const tokenQuery = supabase.from("tokens").update({ size: newSize }).eq("session_id", s.id);
     await Promise.all([
       supabase.from("sessions").update({ token_size: newSize }).eq("id", s.id),
-      supabase.from("tokens").update({ size: newSize }).eq("session_id", s.id),
+      tokenSizeScope === "all"
+        ? tokenQuery
+        : tokenQuery.not("owner_id", "is", null),
     ]);
   };
 
@@ -162,13 +167,15 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
             const controllable = canControl(token.owner_id);
             const isLockedByOwner = token.owner_id !== null && lockedBy[token.id] === token.owner_id;
             const isDead = token.hp === 0;
+            const inSizeScope = tokenSizeScope === "all" || token.owner_id !== null;
+            const baseOpacity = isOwner && !(token.visible ?? true) ? 0.35 : isDead ? 0.5 : 1;
             return (
               <TokenShape
                 key={token.id}
                 token={token}
                 draggable={controllable && !(isOwner && isLockedByOwner) && (!isDead || isOwner)}
-                opacity={isOwner && !(token.visible ?? true) ? 0.35 : isDead ? 0.5 : 1}
-                tokenSize={pendingTokenSize ?? token.size ?? DEFAULT_TOKEN_SIZE}
+                opacity={pendingTokenSize !== null && !inSizeScope ? 0.25 : baseOpacity}
+                tokenSize={pendingTokenSize !== null && inSizeScope ? pendingTokenSize : (token.size ?? DEFAULT_TOKEN_SIZE)}
                 imageBounds={imageBounds}
                 stageRef={zoom.stageRef}
                 onDragMove={handleDragMove}
@@ -200,7 +207,9 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
         session={session}
         stageScale={zoom.stageScale}
         pendingTokenSize={pendingTokenSize}
+        tokenSizeScope={tokenSizeScope}
         onPendingTokenSize={setPendingTokenSize}
+        onTokenSizeScope={setTokenSizeScope}
         onTokenSizeCommit={handleTokenSizeCommit}
         onZoomIn={() => zoom.zoomBy(SCALE_BY)}
         onZoomOut={() => zoom.zoomBy(1 / SCALE_BY)}

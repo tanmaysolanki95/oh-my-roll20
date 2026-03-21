@@ -1,12 +1,16 @@
 import type { Session } from "@/types";
 import { MIN_TOKEN_SIZE, MAX_TOKEN_SIZE } from "@/lib/mapUtils";
 
+type TokenSizeScope = "all" | "players";
+
 interface MapControlsProps {
   isOwner: boolean;
   session: Session | null;
   stageScale: number;
   pendingTokenSize: number | null;
+  tokenSizeScope: TokenSizeScope;
   onPendingTokenSize: (v: number | null) => void;
+  onTokenSizeScope: (s: TokenSizeScope) => void;
   onTokenSizeCommit: (newSize: number) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -15,18 +19,38 @@ interface MapControlsProps {
 
 export default function MapControls({
   isOwner, session, stageScale,
-  pendingTokenSize, onPendingTokenSize, onTokenSizeCommit,
+  pendingTokenSize, tokenSizeScope,
+  onPendingTokenSize, onTokenSizeScope, onTokenSizeCommit,
   onZoomIn, onZoomOut, onResetView,
 }: MapControlsProps) {
   const tokenSize = session?.token_size ?? 56;
 
   return (
     <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-gray-950/90 backdrop-blur-md border border-white/10 rounded-lg px-3 py-2 shadow-lg shadow-black/50">
-      {/* Default token size — DM only */}
+      {/* Token size — DM only */}
       {isOwner && session && (
         <>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">Token</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-400 shrink-0">Token</span>
+
+            {/* Scope toggle */}
+            <div className="flex rounded overflow-hidden border border-gray-700 text-xs">
+              {(["all", "players"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => onTokenSizeScope(s)}
+                  className={`px-1.5 py-0.5 capitalize transition-colors ${
+                    tokenSizeScope === s
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  }`}
+                  title={s === "all" ? "Resize all tokens" : "Resize player-owned tokens only"}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
             <button
               onClick={() => onTokenSizeCommit(Math.max(MIN_TOKEN_SIZE, tokenSize - 4))}
               className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-700 text-sm transition-colors"
