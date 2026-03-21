@@ -21,7 +21,8 @@ A lightweight virtual tabletop (VTT) for D&D sessions with friends. Built to be 
 - **Dice roller** — full expression parser (`3d20+10`, `2d6-1`, etc.) with a shared roll log; natural 20/1 callouts; violet accent theme
 - **Tabbed sidebar** — Session / Tokens / Dice tabs with a resizable sidebar; DM controls (invite code, map upload, token limit, grid size) live in the Session tab with clear descriptions
 - **Real-time** — all state syncs across all connected clients in ~100ms
-- **d20 logo** — fantasy-themed app icon shown in the browser tab and lobby header
+- **d20 logo** — fantasy-themed SVG icon in a glowing rounded square on the lobby; also shown in the browser tab
+- **Lobby** — slate dark background, d20 hero icon, identity (name + color) above a two-column Create / Join grid
 
 ## Stack
 
