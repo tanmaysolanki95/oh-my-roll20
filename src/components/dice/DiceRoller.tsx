@@ -8,6 +8,7 @@ import { useSessionStore } from "@/store/session";
 interface DiceRollerProps {
   sessionId: string;
   onCollapse?: () => void;
+  broadcastDiceRoll: (roll_id: string, player_name: string, expression: string, result: number, breakdown: string, created_at: string) => void;
 }
 
 function relativeTime(iso: string): string {
@@ -17,7 +18,7 @@ function relativeTime(iso: string): string {
   return `${Math.floor(diff / 3600)}h`;
 }
 
-export default function DiceRoller({ sessionId, onCollapse }: DiceRollerProps) {
+export default function DiceRoller({ sessionId, onCollapse, broadcastDiceRoll }: DiceRollerProps) {
   const supabase = createClient();
   const { diceLog, playerName, addDiceRoll } = useSessionStore();
   const [expr, setExpr] = useState("1d20");
@@ -55,7 +56,17 @@ export default function DiceRoller({ sessionId, onCollapse }: DiceRollerProps) {
 
     addDiceRoll(rollEntry);
 
+    broadcastDiceRoll(
+      rollEntry.id,
+      rollEntry.player_name,
+      rollEntry.expression,
+      rollEntry.result,
+      rollEntry.breakdown,
+      rollEntry.created_at,
+    );
+
     await supabase.from("dice_rolls").insert({
+      id: rollEntry.id,
       session_id: rollEntry.session_id,
       player_name: rollEntry.player_name,
       expression: rollEntry.expression,

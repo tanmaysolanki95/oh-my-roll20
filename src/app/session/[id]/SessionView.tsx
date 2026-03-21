@@ -32,7 +32,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   useAuth();
 
   const { setSession, session, tokens, userId, playerName, playerColor, setPlayerName, setPlayerColor, upsertToken } = useSessionStore();
-  const { broadcastTokenMove, broadcastSessionEnd, broadcastTokenDragStart, broadcastTokenDragEnd, lockedBy } = useRealtimeSession(sessionId);
+  const { broadcastTokenMove, broadcastSessionEnd, broadcastTokenDragStart, broadcastTokenDragEnd, broadcastDiceRoll, lockedBy } = useRealtimeSession(sessionId);
 
   const [mapError, setMapError] = useState("");
   const [mapUploading, setMapUploading] = useState(false);
@@ -552,7 +552,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
             {/* ── Dice tab ── */}
             {activeTab === "dice" && (
               <div className="flex-1 min-h-0 px-3 pb-3 pt-2 overflow-hidden flex flex-col">
-                <DiceRoller sessionId={sessionId} />
+                <DiceRoller sessionId={sessionId} broadcastDiceRoll={broadcastDiceRoll} />
               </div>
             )}
 
