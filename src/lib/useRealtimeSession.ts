@@ -89,13 +89,13 @@ export function useRealtimeSession(sessionId: string) {
       { event: "dice_roll" },
       ({ payload }: { payload: Extract<BroadcastEvent, { type: "dice_roll" }> }) => {
         addDiceRoll({
-          id: crypto.randomUUID(),
+          id: payload.roll_id,
           session_id: sessionId,
           player_name: payload.player_name,
           expression: payload.expression,
           result: payload.result,
           breakdown: payload.breakdown,
-          created_at: new Date().toISOString(),
+          created_at: payload.created_at,
         });
       }
     );
@@ -191,5 +191,20 @@ export function useRealtimeSession(sessionId: string) {
     });
   };
 
-  return { broadcastTokenMove, broadcastSessionEnd, broadcastTokenDragStart, broadcastTokenDragEnd, lockedBy };
+  const broadcastDiceRoll = (
+    roll_id: string,
+    player_name: string,
+    expression: string,
+    result: number,
+    breakdown: string,
+    created_at: string,
+  ) => {
+    channelRef.current?.send({
+      type: "broadcast",
+      event: "dice_roll",
+      payload: { type: "dice_roll", roll_id, created_at, player_name, expression, result, breakdown },
+    });
+  };
+
+  return { broadcastTokenMove, broadcastSessionEnd, broadcastTokenDragStart, broadcastTokenDragEnd, broadcastDiceRoll, lockedBy };
 }
