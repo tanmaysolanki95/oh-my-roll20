@@ -26,6 +26,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   const { broadcastTokenMove, broadcastSessionEnd, broadcastTokenDragStart, broadcastTokenDragEnd, lockedBy } = useRealtimeSession(sessionId);
   const [mapError, setMapError] = useState("");
   const [codeCopied, setCodeCopied] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(256);
 
   const copyJoinCode = () => {
     if (!session?.join_code) return;
@@ -100,7 +101,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     <div className="flex flex-col h-screen bg-gray-950 text-white">
       <PresenceBar isOwner={isOwner} />
 
-      <div className="flex flex-1 min-h-0 gap-0">
+      <div className="flex flex-1 min-h-0">
         {/* Main map area */}
         <div className="flex-1 min-w-0 relative p-2">
           <MapCanvas
@@ -125,8 +126,28 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
           )}
         </div>
 
+        {/* Resize handle */}
+        <div
+          className="w-1 shrink-0 cursor-col-resize bg-gray-800 hover:bg-indigo-500/60 active:bg-indigo-500 transition-colors"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const startWidth = sidebarWidth;
+            const onMove = (ev: PointerEvent) => {
+              const delta = startX - ev.clientX;
+              setSidebarWidth(Math.max(200, Math.min(520, startWidth + delta)));
+            };
+            const onUp = () => {
+              window.removeEventListener("pointermove", onMove);
+              window.removeEventListener("pointerup", onUp);
+            };
+            window.addEventListener("pointermove", onMove);
+            window.addEventListener("pointerup", onUp);
+          }}
+        />
+
         {/* Right sidebar */}
-        <div className="w-64 shrink-0 bg-gray-900 border-l border-gray-800 flex flex-col">
+        <div className="shrink-0 bg-gray-900 border-l border-gray-800 flex flex-col" style={{ width: sidebarWidth }}>
           {/* DM-only controls */}
           {isOwner && (
             <div className="px-3 py-2 border-b border-gray-800 space-y-2">
