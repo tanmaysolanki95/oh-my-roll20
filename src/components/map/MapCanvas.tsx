@@ -152,6 +152,21 @@ export default function MapCanvas({
           <FogAdminOverlay fogShapes={session.fog_shapes ?? []} />
         )}
 
+        {/* Layer 3b — map boundary outline: always visible above fog so players can navigate */}
+        {mapUrl && imageSize.width > 0 && session?.fog_enabled && (
+          <Layer listening={false}>
+            <Rect
+              x={0} y={0}
+              width={imageSize.width}
+              height={imageSize.height}
+              fill="transparent"
+              stroke="rgba(255,255,255,0.35)"
+              strokeWidth={3 / zoom.stageScale}
+              dash={[12 / zoom.stageScale, 6 / zoom.stageScale]}
+            />
+          </Layer>
+        )}
+
         {/* Layer 4 — tokens (always above fog) */}
         <Layer>
           {tokens.filter(t => isOwner || (t.visible ?? true)).map((token) => {

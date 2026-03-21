@@ -115,16 +115,6 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
     setOpenIconTokenId(null);
   };
 
-  const claimToken = async (id: string) => {
-    const supabase = createClient();
-    await supabase.from("tokens").update({ owner_id: userId }).eq("id", id);
-  };
-
-  const unclaimToken = async (id: string) => {
-    const supabase = createClient();
-    await supabase.from("tokens").update({ owner_id: null }).eq("id", id);
-  };
-
   const toggleSizeLock = async (token: Token) => {
     const locked = !token.size_locked;
     upsertToken({ ...token, size_locked: locked });
@@ -274,7 +264,6 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                 const hpRatio = Math.max(0, token.hp / token.max_hp);
                 const mine = token.owner_id === userId || (isOwner && token.owner_id === null);
                 const controllable = canControl(token.owner_id);
-                const unclaimed = token.owner_id === null;
                 const effectiveSize = token.size ?? session?.token_size ?? 56;
                 const isDead = token.hp === 0;
                 const isHidden = isOwner && !(token.visible ?? true);
@@ -316,24 +305,6 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0">
-                        {!isOwner && unclaimed && (
-                          <button
-                            onClick={() => claimToken(token.id)}
-                            className="text-xs px-1.5 py-0.5 bg-indigo-700 hover:bg-indigo-600 text-white rounded transition-colors"
-                            title="Take ownership of this token"
-                          >
-                            Claim
-                          </button>
-                        )}
-                        {mine && !isOwner && (
-                          <button
-                            onClick={() => unclaimToken(token.id)}
-                            className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-                            title="Release ownership"
-                          >
-                            ↩
-                          </button>
-                        )}
                         {isOwner && (
                           <button
                             onClick={() => toggleVisible(token)}
