@@ -20,15 +20,19 @@ interface FogLayerProps {
 export function FogLayer({ fogShapes, fogPreview, isOwner, mapWidth, mapHeight }: FogLayerProps) {
   const fogFill = "#0f172a"; // dark navy — visible as blue-tinted vs pure black outside
   const fogOpacity = isOwner ? 0.72 : 1;
+  const hasMap = mapWidth > 0 && mapHeight > 0;
 
   return (
-    <Layer listening={false} opacity={fogOpacity}>
-      {/* Outside the map: solid black */}
-      <Rect x={0} y={0} width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill="black" />
-      {/* Inside the map: dark navy blue (fogged by default, reveals punch through) */}
-      {mapWidth > 0 && mapHeight > 0 && (
-        <Rect x={0} y={0} width={mapWidth} height={mapHeight} fill={fogFill} />
-      )}
+    <Layer
+      listening={false}
+      opacity={fogOpacity}
+      clipX={0}
+      clipY={0}
+      clipWidth={hasMap ? mapWidth : VIRTUAL_SIZE}
+      clipHeight={hasMap ? mapHeight : VIRTUAL_SIZE}
+    >
+      {/* Full-canvas base rect (VIRTUAL_SIZE prevents sub-pixel edge bleed at high zoom) */}
+      <Rect x={0} y={0} width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill={fogFill} />
       {fogShapes.map((shape, i) =>
         shape.type === "reveal"
           ? <Rect key={i} x={shape.x} y={shape.y} width={shape.w} height={shape.h}

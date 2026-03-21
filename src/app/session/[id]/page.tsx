@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import SessionView from "./SessionView";
 import type { Session } from "@/types";
@@ -19,7 +19,7 @@ export default async function SessionPage({
     .eq("id", id)
     .single();
 
-  if (!data) notFound();
+  if (!data) redirect("/");
 
   return <SessionView sessionId={id} initialSession={data as Session} />;
 }

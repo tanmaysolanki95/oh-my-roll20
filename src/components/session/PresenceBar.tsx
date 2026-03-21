@@ -7,9 +7,10 @@ import Logo from "@/components/ui/Logo";
 interface PresenceBarProps {
   isOwner: boolean;
   onEndSession: () => void;
+  onLeave: () => void;
 }
 
-export default function PresenceBar({ isOwner, onEndSession }: PresenceBarProps) {
+export default function PresenceBar({ isOwner, onEndSession, onLeave }: PresenceBarProps) {
   const { presence, session } = useSessionStore();
   const [confirming, setConfirming] = useState(false);
 
@@ -37,11 +38,21 @@ export default function PresenceBar({ isOwner, onEndSession }: PresenceBarProps)
           </div>
         ))}
 
+        {/* Leave session — non-DM only */}
+        {!isOwner && (
+          <button
+            onClick={onLeave}
+            className="ml-2 text-xs px-2 py-1 text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            ← Leave
+          </button>
+        )}
+
         {/* End session — DM only, two-step confirm */}
         {isOwner && (!confirming ? (
           <button
             onClick={() => setConfirming(true)}
-            className="ml-2 text-xs px-2 py-1 text-gray-500 hover:text-red-400 transition-colors"
+            className="text-xs px-2 py-1 text-gray-500 hover:text-red-400 transition-colors"
           >
             End Session
           </button>

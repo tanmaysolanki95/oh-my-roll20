@@ -273,7 +273,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-white">
-      <PresenceBar isOwner={isOwner} onEndSession={endSession} />
+      <PresenceBar isOwner={isOwner} onEndSession={endSession} onLeave={() => router.push("/")} />
 
       <div className="flex flex-1 min-h-0">
         {/* Main map area */}

@@ -54,6 +54,7 @@ export default function MapCanvas({
     stagePosRef: zoom.stagePosRef,
     isOwner,
     fogTool,
+    imageBounds,
   });
 
   // Auto-fit the view whenever a new map URL loads (fires for DM and all players).
