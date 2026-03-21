@@ -90,7 +90,7 @@ export default function MapCanvas({
   }, [gridEnabled, gridSize, gridWidth, gridHeight]);
 
   return (
-    <div ref={zoom.containerRef} className="w-full h-full bg-gray-900 rounded-lg overflow-hidden relative">
+    <div ref={zoom.containerRef} className="w-full h-full bg-black rounded-lg overflow-hidden relative">
       <Stage
         ref={zoom.stageRef}
         width={zoom.size.width}
@@ -133,7 +133,7 @@ export default function MapCanvas({
           <Rect name="background" x={0} y={0} width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill="rgba(0,0,0,0.001)" />
           {mapUrl && imageSize.width > 0
             ? <MapBackground url={mapUrl} width={imageSize.width} height={imageSize.height} />
-            : <Rect name="background" width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill="#1f2937" />
+            : <Rect name="background" width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill="#111827" />
           }
           {gridLines}
         </Layer>
