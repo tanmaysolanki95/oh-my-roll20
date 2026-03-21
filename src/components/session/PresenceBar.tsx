@@ -19,30 +19,18 @@ export default function PresenceBar({ isOwner }: { isOwner: boolean }) {
     router.push("/");
   };
 
-  // Copy session ID to clipboard
-  const copyCode = () => {
-    if (session) navigator.clipboard.writeText(session.id);
-  };
-
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-gray-900 border-b border-gray-800">
+    <div className="flex items-center gap-3 px-4 py-2 bg-gray-900/80 backdrop-blur-md border-b border-white/5">
       <Logo size={22} />
-      <span className="text-xs text-gray-500 font-medium">{session?.name ?? "Session"}</span>
-
-      <button
-        onClick={copyCode}
-        className="text-xs text-gray-600 hover:text-gray-400 font-mono transition-colors truncate max-w-[160px]"
-        title="Copy session code"
-      >
-        {session?.id.slice(0, 8)}… 📋
-      </button>
+      <span className="text-gray-700 select-none">|</span>
+      <span className="text-xs text-gray-400 font-medium">{session?.name ?? "Session"}</span>
 
       <div className="flex items-center gap-1.5 ml-auto">
         <span className="text-xs text-gray-500">{presence.length} connected</span>
         {presence.map((p) => (
           <div
             key={p.user_id}
-            className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-gray-800"
+            className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-gray-800 hover:ring-2 hover:ring-indigo-500/60 transition-all shadow-sm cursor-default"
             style={{ background: p.color }}
             title={p.player_name}
           >

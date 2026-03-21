@@ -136,7 +136,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
 
       {/* Add token form */}
       {canAdd && adding && (
-        <div className="bg-gray-800 rounded-lg p-3 space-y-2">
+        <div className="bg-gray-800/80 rounded-xl p-3 space-y-2 border border-gray-700/40">
           <input
             autoFocus
             type="text"
@@ -187,17 +187,20 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
           const unclaimed = token.owner_id === null;
           const effectiveSize = token.size ?? session?.token_size ?? 56;
 
+          const isDead = token.hp === 0;
+          const isHidden = isOwner && !(token.visible ?? true);
+
           return (
             <div
               key={token.id}
-              className={`rounded-lg p-2.5 space-y-1.5 ${mine ? "ring-1 ring-indigo-500" : ""} ${
-                isOwner && !token.visible
-                  ? "bg-gray-900 border border-dashed border-gray-700 opacity-70"
-                  : "bg-gray-800"
+              className={`rounded-xl p-2.5 space-y-1.5 border transition-colors ${mine ? "ring-1 ring-indigo-500" : ""} ${
+                isHidden
+                  ? "bg-gray-900/60 border-dashed border-gray-700/60 opacity-75 hover:opacity-90"
+                  : "bg-gray-800/60 hover:bg-gray-800/90 border-gray-700/40"
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-wrap">
                   <div
                     className="w-4 h-4 rounded-full shrink-0"
                     style={{ background: token.color }}
@@ -205,6 +208,12 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                   <span className="text-sm font-medium text-white truncate">{token.name}</span>
                   {mine && (
                     <span className="text-xs text-indigo-400 shrink-0">you</span>
+                  )}
+                  {isDead && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-red-950/60 text-red-400 border border-red-800/50 shrink-0">Dead</span>
+                  )}
+                  {isHidden && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-400 border border-amber-800/50 shrink-0">Hidden</span>
                   )}
                 </div>
 
@@ -255,7 +264,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
 
               {/* HP controls */}
               {controllable ? (
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 rounded-lg bg-gray-900/40 px-2 py-1.5">
                   {/* HP bar */}
                   <div>
                     <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
@@ -301,7 +310,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                   )}
                 </div>
               ) : (
-                <div className="px-1">
+                <div className="rounded-lg bg-gray-900/40 px-2 py-1.5">
                   <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full"
@@ -319,7 +328,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
 
               {/* Size slider — token owner or DM */}
               {controllable && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 rounded-lg bg-gray-900/40 px-2 py-1.5">
                   <span className="text-xs text-gray-500 shrink-0">Size</span>
                   <input
                     type="range"

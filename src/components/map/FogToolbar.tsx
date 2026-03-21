@@ -8,7 +8,7 @@ interface FogToolbarProps {
 
 export default function FogToolbar({ fogEnabled, fogTool, onToggleFog, onActivateTool, onClearFog }: FogToolbarProps) {
   return (
-    <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-gray-950/80 backdrop-blur-sm border border-gray-700 rounded-lg px-2 py-1.5">
+    <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-gray-950/90 backdrop-blur-md border border-white/10 rounded-lg px-2 py-1.5 shadow-lg shadow-black/50">
       <button
         onClick={onToggleFog}
         className={`text-xs px-2 py-1 rounded font-medium transition-colors ${

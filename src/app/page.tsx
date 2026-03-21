@@ -80,12 +80,12 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
+    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-indigo-950/40 text-white flex items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-5">
         {/* Logo */}
         <div className="text-center space-y-2">
-          <div className="flex justify-center">
-            <Logo size={64} />
+          <div className="flex justify-center drop-shadow-lg">
+            <Logo size={80} />
           </div>
           <h1 className="text-4xl font-black tracking-tight text-indigo-400">
             oh-my-roll20
@@ -94,8 +94,8 @@ export default function Home() {
         </div>
 
         {/* Identity */}
-        <div className="bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-800">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 space-y-3 border border-white/10 shadow-xl">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider border-l-2 border-indigo-500 pl-2">
             Your Identity
           </div>
           <input
@@ -103,7 +103,7 @@ export default function Home() {
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
             placeholder="Your name"
-            className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-indigo-500 text-sm"
+            className="w-full bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 text-sm transition-all"
           />
           <div className="flex gap-2 flex-wrap">
             {PLAYER_COLORS.map((c) => (
@@ -111,15 +111,15 @@ export default function Home() {
                 key={c}
                 onClick={() => setColorPick(c)}
                 style={{ background: c }}
-                className={`w-7 h-7 rounded-full transition-transform ${colorPick === c ? "scale-125 ring-2 ring-white" : ""}`}
+                className={`w-7 h-7 rounded-full transition-transform ${colorPick === c ? "scale-125 ring-2 ring-white" : "hover:scale-110"}`}
               />
             ))}
           </div>
         </div>
 
         {/* Create session */}
-        <div className="bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-800">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 space-y-3 border border-white/10 shadow-xl">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider border-l-2 border-indigo-500 pl-2">
             New Session
           </div>
           <input
@@ -128,20 +128,20 @@ export default function Home() {
             onChange={(e) => setSessionName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && createSession()}
             placeholder="Campaign name..."
-            className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-indigo-500 text-sm"
+            className="w-full bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 text-sm transition-all"
           />
           <button
             onClick={createSession}
             disabled={loading}
-            className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold rounded transition-colors"
+            className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] hover:scale-[1.02] disabled:opacity-50 text-white font-bold rounded-lg transition-all"
           >
             Create & Host
           </button>
         </div>
 
         {/* Join session */}
-        <div className="bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-800">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 space-y-3 border border-white/10 shadow-xl">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider border-l-2 border-indigo-500 pl-2">
             Join Session
           </div>
           <input
@@ -150,12 +150,12 @@ export default function Home() {
             onChange={(e) => setJoinCode(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && joinSession()}
             placeholder="6-letter code (e.g. A3F2B9)"
-            className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-indigo-500 text-sm font-mono"
+            className="w-full bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 text-sm font-mono transition-all"
           />
           <button
             onClick={joinSession}
             disabled={loading}
-            className="w-full py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-bold rounded transition-colors"
+            className="w-full py-2 bg-gray-700 hover:bg-gray-600 active:scale-[0.98] hover:scale-[1.02] disabled:opacity-50 text-white font-bold rounded-lg transition-all"
           >
             Join
           </button>

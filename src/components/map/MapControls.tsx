@@ -21,7 +21,7 @@ export default function MapControls({
   const tokenSize = session?.token_size ?? 56;
 
   return (
-    <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-gray-950/80 backdrop-blur-sm border border-gray-700 rounded-lg px-3 py-2">
+    <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-gray-950/90 backdrop-blur-md border border-white/10 rounded-lg px-3 py-2 shadow-lg shadow-black/50">
       {/* Default token size — DM only */}
       {isOwner && session && (
         <>
