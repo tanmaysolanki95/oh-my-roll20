@@ -185,8 +185,8 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
           {canAdd && (
             <button
               onClick={() => setAdding((v) => !v)}
-              className="text-xs px-2 py-1 text-white rounded transition-colors"
-              style={{ background: "var(--theme-accent)" }}
+              className="text-xs px-2 py-1 rounded transition-colors"
+              style={{ background: "var(--theme-accent)", color: "var(--theme-text-primary)" }}
               title={adding ? "Cancel adding token" : "Add a new character token to the map"}
             >
               {adding ? "Cancel" : "+ Add"}
@@ -258,8 +258,8 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
           {addError && <p className="text-xs text-red-400">{addError}</p>}
           <button
             onClick={addToken}
-            className="w-full py-1.5 text-white text-sm font-bold rounded transition-colors"
-            style={{ background: "var(--theme-accent)" }}
+            className="w-full py-1.5 text-sm font-bold rounded transition-colors"
+            style={{ background: "var(--theme-accent)", color: "var(--theme-text-primary)" }}
           >
             Add to Map
           </button>
@@ -314,7 +314,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                         <button
                           type="button"
                           onClick={() => controllable && setOpenIconTokenId(openIconTokenId === token.id ? null : token.id)}
-                          className={`w-6 h-6 rounded-full shrink-0 overflow-hidden border-2 transition-colors ${controllable ? "cursor-pointer hover:border-indigo-400" : "cursor-default"}`}
+                          className={`w-6 h-6 rounded-full shrink-0 overflow-hidden border-2 transition-colors ${controllable ? "cursor-pointer hover:border-[var(--theme-border-accent)]" : "cursor-default"}`}
                           style={{ borderColor: token.color, background: token.color }}
                           title={controllable ? "Change icon" : undefined}
                         >
@@ -346,10 +346,10 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                             onClick={() => toggleVisible(token)}
                             className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
                               token.visible
-                                ? "hover:bg-gray-700"
-                                : "text-yellow-400 bg-gray-700 hover:text-yellow-300"
+                                ? "hover:bg-[var(--theme-bg-panel)]"
+                                : "text-yellow-400 hover:text-yellow-300"
                             }`}
-                            style={token.visible ? { color: "var(--theme-text-muted)" } : {}}
+                            style={token.visible ? { color: "var(--theme-text-muted)" } : { background: "var(--theme-bg-panel)" }}
                             title={token.visible ? "Hide token from players" : "Show token to players"}
                           >
                             {token.visible ? "Hide" : "Show"}
@@ -455,7 +455,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                         {token.hp === 0 && (
                           <button
                             onClick={() => updateHp(token, token.max_hp)}
-                            className="w-full py-0.5 text-xs font-semibold text-green-400 hover:text-white hover:bg-green-800 border border-green-800 hover:border-green-700 rounded transition-colors"
+                            className="w-full py-0.5 text-xs font-semibold text-green-400 hover:text-[var(--theme-text-primary)] hover:bg-green-800 border border-green-800 hover:border-green-700 rounded transition-colors"
                           >
                             Revive
                           </button>
@@ -526,7 +526,8 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                         {isOwner && (
                           <button
                             onClick={() => toggleSizeLock(token)}
-                            className={`text-sm transition-colors shrink-0 ${token.size_locked ? "text-amber-400 hover:text-amber-300" : "text-gray-400 hover:text-amber-400"}`}
+                            className={`text-sm transition-colors shrink-0 ${token.size_locked ? "text-amber-400 hover:text-amber-300" : "hover:text-amber-400"}`}
+                            style={token.size_locked ? {} : { color: "var(--theme-text-muted)" }}
                             title={token.size_locked ? "Unlock size" : "Lock size"}
                           >
                             {token.size_locked ? "🔒" : "🔓"}
