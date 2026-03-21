@@ -98,6 +98,12 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
     await supabase.from("tokens").update({ size: newSize }).eq("id", token.id);
   };
 
+  const toggleVisible = async (token: Token) => {
+    upsertToken({ ...token, visible: !token.visible });
+    const supabase = createClient();
+    await supabase.from("tokens").update({ visible: !token.visible }).eq("id", token.id);
+  };
+
   const claimToken = async (id: string) => {
     const supabase = createClient();
     await supabase.from("tokens").update({ owner_id: userId }).eq("id", id);
@@ -181,7 +187,11 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
           return (
             <div
               key={token.id}
-              className={`bg-gray-800 rounded-lg p-2.5 space-y-1.5 ${mine ? "ring-1 ring-indigo-500" : ""}`}
+              className={`rounded-lg p-2.5 space-y-1.5 ${mine ? "ring-1 ring-indigo-500" : ""} ${
+                isOwner && !token.visible
+                  ? "bg-gray-900 border border-dashed border-gray-700 opacity-70"
+                  : "bg-gray-800"
+              }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -214,14 +224,27 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                       ↩
                     </button>
                   )}
-                  {/* Delete — DM only */}
+                  {/* Visibility toggle + Delete — DM only */}
                   {isOwner && (
-                    <button
-                      onClick={() => removeToken(token.id)}
-                      className="text-gray-600 hover:text-red-400 text-xs transition-colors"
-                    >
-                      ✕
-                    </button>
+                    <>
+                      <button
+                        onClick={() => toggleVisible(token)}
+                        className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
+                          token.visible
+                            ? "text-gray-500 hover:text-white hover:bg-gray-700"
+                            : "text-yellow-400 bg-gray-700 hover:text-yellow-300"
+                        }`}
+                        title={token.visible ? "Hide from players" : "Show to players"}
+                      >
+                        {token.visible ? "Hide" : "Show"}
+                      </button>
+                      <button
+                        onClick={() => removeToken(token.id)}
+                        className="text-gray-600 hover:text-red-400 text-xs transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

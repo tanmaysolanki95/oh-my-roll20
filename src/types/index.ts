@@ -1,9 +1,20 @@
+export interface FogShape {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  type: "reveal" | "hide";
+}
+
 export interface Session {
   id: string;
   name: string;
   map_url: string | null;
   grid_size: number;
   token_size: number;
+  fog_enabled: boolean;
+  fog_shapes: FogShape[];
+  join_code: string;
   owner_id: string;
   created_at: string;
 }
@@ -20,6 +31,7 @@ export interface Token {
   image_url: string | null;
   owner_id: string | null; // null = unclaimed; set when a player claims the token
   size: number | null;     // null = inherit session token_size
+  visible: boolean;        // false = hidden from non-admin players
 }
 
 export interface DiceRoll {

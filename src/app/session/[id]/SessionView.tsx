@@ -25,6 +25,14 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   const { setSession, session, userId } = useSessionStore();
   const { broadcastTokenMove, broadcastSessionEnd, broadcastTokenDragStart, broadcastTokenDragEnd, lockedBy } = useRealtimeSession(sessionId);
   const [mapError, setMapError] = useState("");
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  const copyJoinCode = () => {
+    if (!session?.join_code) return;
+    navigator.clipboard.writeText(session.join_code);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 1500);
+  };
   const router = useRouter();
 
   const isOwner = !!userId && session?.owner_id === userId;
@@ -114,6 +122,19 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
           {/* DM-only controls */}
           {isOwner && (
             <div className="px-3 py-2 border-b border-gray-800 space-y-2">
+              {/* Join code */}
+              {session?.join_code && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 uppercase tracking-wider shrink-0">Code</span>
+                  <span className="font-mono text-sm font-bold text-indigo-300 tracking-widest flex-1">{session.join_code}</span>
+                  <button
+                    onClick={copyJoinCode}
+                    className="text-xs text-gray-500 hover:text-white transition-colors shrink-0"
+                  >
+                    {codeCopied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+              )}
               {/* Grid size */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 uppercase tracking-wider">Grid</span>

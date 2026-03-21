@@ -70,7 +70,7 @@ export default function Home() {
     const { data } = await supabase
       .from("sessions")
       .select("id")
-      .eq("id", joinCode.trim())
+      .eq("join_code", joinCode.trim().toUpperCase())
       .single();
 
     setLoading(false);
@@ -145,7 +145,7 @@ export default function Home() {
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && joinSession()}
-            placeholder="Paste session code..."
+            placeholder="6-letter code (e.g. A3F2B9)"
             className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-indigo-500 text-sm font-mono"
           />
           <button

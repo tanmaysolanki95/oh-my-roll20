@@ -7,7 +7,7 @@ import type Konva from "konva";
 import useImage from "use-image";
 import { createClient } from "@/lib/supabase/client";
 import { useSessionStore } from "@/store/session";
-import type { Token } from "@/types";
+import type { Token, FogShape } from "@/types";
 import { useAuth } from "@/lib/useAuth";
 
 interface MapCanvasProps {
@@ -52,10 +52,11 @@ function clampStagePos(
 // ---------------------------------------------------------------------------
 // TokenShape
 // ---------------------------------------------------------------------------
-function TokenShape({ token, canControl, draggable, tokenSize, imageBounds, stageRef, onDragMove, onDragEnd, onDragStart, onHpChange }: {
+function TokenShape({ token, canControl, draggable, opacity, tokenSize, imageBounds, stageRef, onDragMove, onDragEnd, onDragStart, onHpChange }: {
   token: Token;
   canControl: boolean;
   draggable: boolean;
+  opacity: number;
   tokenSize: number;
   imageBounds: { x: number; y: number; width: number; height: number } | null;
   stageRef: React.MutableRefObject<Konva.Stage | null>;
@@ -86,6 +87,7 @@ function TokenShape({ token, canControl, draggable, tokenSize, imageBounds, stag
     <Group
       x={token.x}
       y={token.y}
+      opacity={opacity}
       draggable={draggable}
       onDragStart={() => {
         onDragStart(token.id);
@@ -199,6 +201,18 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
   // Pending token size: local preview while DM drags the slider (avoids a DB write per pixel)
   const [pendingTokenSize, setPendingTokenSize] = useState<number | null>(null);
 
+  // Fog of war
+  const [fogTool, setFogToolState] = useState<"reveal" | "hide" | null>(null);
+  const fogToolRef = useRef<"reveal" | "hide" | null>(null);
+  const [fogPreview, setFogPreview] = useState<FogShape | null>(null);
+  const isFogPainting = useRef(false);
+  const fogPaintStart = useRef<{ x: number; y: number } | null>(null);
+
+  const activateFogTool = (tool: "reveal" | "hide" | null) => {
+    setFogToolState(tool);
+    fogToolRef.current = tool;
+  };
+
   // Refs for values used in event handlers (avoid stale closures)
   const stageScaleRef = useRef(stageScale);
   const stagePosRef = useRef(stagePos);
@@ -306,6 +320,37 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
     await supabase.from("tokens").update({ x, y }).eq("id", id);
   };
 
+  // Fog of war operations
+  const toggleFog = async () => {
+    const s = useSessionStore.getState().session;
+    if (!s) return;
+    const enabled = !s.fog_enabled;
+    setSession({ ...s, fog_enabled: enabled });
+    if (!enabled) activateFogTool(null);
+    await createClient().from("sessions").update({ fog_enabled: enabled }).eq("id", s.id);
+  };
+
+  const commitFogShape = async (shape: FogShape) => {
+    const s = useSessionStore.getState().session;
+    if (!s) return;
+    const shapes = [...(s.fog_shapes ?? []), shape];
+    setSession({ ...s, fog_shapes: shapes });
+    await createClient().from("sessions").update({ fog_shapes: shapes }).eq("id", s.id);
+  };
+
+  const clearFog = async () => {
+    const s = useSessionStore.getState().session;
+    if (!s) return;
+    setSession({ ...s, fog_shapes: [] });
+    await createClient().from("sessions").update({ fog_shapes: [] }).eq("id", s.id);
+  };
+
+  // Cursor: crosshair in fog mode
+  useEffect(() => {
+    const container = stageRef.current?.container();
+    if (container) container.style.cursor = fogTool ? "crosshair" : "";
+  }, [fogTool]);
+
   const handleHpChange = async (token: Token, delta: number) => {
     const newHp = Math.max(0, Math.min(token.max_hp, token.hp + delta));
     upsertToken({ ...token, hp: newHp });
@@ -339,14 +384,40 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
         y={stagePos.y}
         onWheel={handleWheel}
         onMouseDown={(e) => {
+          // Fog painting takes priority over panning
+          if (fogToolRef.current && isOwner) {
+            const pointer = stageRef.current?.getPointerPosition();
+            if (!pointer) return;
+            const wx = (pointer.x - stagePosRef.current.x) / stageScaleRef.current;
+            const wy = (pointer.y - stagePosRef.current.y) / stageScaleRef.current;
+            isFogPainting.current = true;
+            fogPaintStart.current = { x: wx, y: wy };
+            setFogPreview({ x: wx, y: wy, w: 0, h: 0, type: fogToolRef.current });
+            return;
+          }
           // Pan when clicking background, map image, or grid — not tokens
-          if (e.target.name() === 'background' || e.target.getClassName() === 'Line') {
+          if (e.target.name() === "background" || e.target.getClassName() === "Line") {
             isPanning.current = true;
             panStart.current = { x: e.evt.clientX, y: e.evt.clientY };
             panOrigin.current = { ...stagePosRef.current };
           }
         }}
         onMouseMove={(e) => {
+          if (isFogPainting.current && fogPaintStart.current) {
+            const pointer = stageRef.current?.getPointerPosition();
+            if (!pointer) return;
+            const wx = (pointer.x - stagePosRef.current.x) / stageScaleRef.current;
+            const wy = (pointer.y - stagePosRef.current.y) / stageScaleRef.current;
+            const start = fogPaintStart.current;
+            setFogPreview({
+              x: Math.min(start.x, wx),
+              y: Math.min(start.y, wy),
+              w: Math.abs(wx - start.x),
+              h: Math.abs(wy - start.y),
+              type: fogToolRef.current!,
+            });
+            return;
+          }
           if (!isPanning.current) return;
           const dx = e.evt.clientX - panStart.current.x;
           const dy = e.evt.clientY - panStart.current.y;
@@ -355,8 +426,40 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
           stagePosRef.current = newPos;
           setStagePos(newPos);
         }}
-        onMouseUp={() => { isPanning.current = false; }}
-        onMouseLeave={() => { isPanning.current = false; }}
+        onMouseUp={() => {
+          if (isFogPainting.current) {
+            isFogPainting.current = false;
+            const start = fogPaintStart.current;
+            fogPaintStart.current = null;
+            setFogPreview(null);
+            if (start) {
+              const pointer = stageRef.current?.getPointerPosition();
+              if (pointer) {
+                const wx = (pointer.x - stagePosRef.current.x) / stageScaleRef.current;
+                const wy = (pointer.y - stagePosRef.current.y) / stageScaleRef.current;
+                const shape: FogShape = {
+                  x: Math.min(start.x, wx),
+                  y: Math.min(start.y, wy),
+                  w: Math.abs(wx - start.x),
+                  h: Math.abs(wy - start.y),
+                  type: fogToolRef.current!,
+                };
+                if (shape.w > 4 && shape.h > 4) commitFogShape(shape);
+              }
+            }
+            return;
+          }
+          isPanning.current = false;
+        }}
+        onMouseLeave={() => {
+          if (isFogPainting.current) {
+            isFogPainting.current = false;
+            fogPaintStart.current = null;
+            setFogPreview(null);
+            return;
+          }
+          isPanning.current = false;
+        }}
       >
         <Layer>
           <Rect
@@ -373,19 +476,44 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
           }
           {gridLines}
         </Layer>
+        {/* Fog of war layer — between background and tokens */}
+        {session?.fog_enabled && (
+          <Layer listening={false} opacity={isOwner ? 0.45 : 0.92}>
+            <Rect width={gridWidth} height={gridHeight} fill="black" />
+            {(session.fog_shapes ?? []).map((shape, i) =>
+              shape.type === "reveal"
+                ? <Rect key={i} x={shape.x} y={shape.y} width={shape.w} height={shape.h}
+                    fill="black" globalCompositeOperation="destination-out" />
+                : <Rect key={i} x={shape.x} y={shape.y} width={shape.w} height={shape.h}
+                    fill="black" globalCompositeOperation="source-over" />
+            )}
+            {/* Live preview while painting */}
+            {fogPreview && (
+              fogPreview.type === "reveal"
+                ? <Rect x={fogPreview.x} y={fogPreview.y} width={fogPreview.w} height={fogPreview.h}
+                    fill="black" globalCompositeOperation="destination-out" />
+                : <Rect x={fogPreview.x} y={fogPreview.y} width={fogPreview.w} height={fogPreview.h}
+                    fill="black" globalCompositeOperation="source-over" />
+            )}
+          </Layer>
+        )}
+
+        {/* Token layer — above fog */}
         <Layer>
-          {tokens.map((token) => {
+          {tokens.filter(t => isOwner || (t.visible ?? true)).map((token) => {
             const effectiveSize = token.size ?? DEFAULT_TOKEN_SIZE;
             const controllable = canControl(token.owner_id);
-            // Lock admin out while the token owner is actively dragging this token
             const isLockedByOwner = token.owner_id !== null && lockedBy[token.id] === token.owner_id;
             const isDraggable = controllable && !(isOwner && isLockedByOwner);
+            // Admin sees hidden tokens at reduced opacity
+            const tokenOpacity = isOwner && !(token.visible ?? true) ? 0.35 : 1;
             return (
               <TokenShape
                 key={token.id}
                 token={token}
                 canControl={controllable}
                 draggable={isDraggable}
+                opacity={tokenOpacity}
                 tokenSize={effectiveSize}
                 imageBounds={imageBounds}
                 stageRef={stageRef}
@@ -397,7 +525,65 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
             );
           })}
         </Layer>
+
+        {/* Fog paint preview outline — admin only, above tokens */}
+        {isOwner && fogPreview && (
+          <Layer listening={false}>
+            <Rect
+              x={fogPreview.x} y={fogPreview.y}
+              width={fogPreview.w} height={fogPreview.h}
+              fill="transparent"
+              stroke={fogPreview.type === "reveal" ? "#22c55e" : "#ef4444"}
+              strokeWidth={2 / stageScale}
+              dash={[8 / stageScale, 4 / stageScale]}
+            />
+          </Layer>
+        )}
       </Stage>
+
+      {/* Fog of war toolbar — top-left, admin only */}
+      {isOwner && (
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-gray-950/80 backdrop-blur-sm border border-gray-700 rounded-lg px-2 py-1.5">
+          <button
+            onClick={toggleFog}
+            className={`text-xs px-2 py-1 rounded font-medium transition-colors ${
+              session?.fog_enabled
+                ? "bg-indigo-600 text-white hover:bg-indigo-500"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+          >
+            Fog {session?.fog_enabled ? "On" : "Off"}
+          </button>
+          {session?.fog_enabled && (
+            <>
+              <div className="w-px h-4 bg-gray-700" />
+              {(["reveal", "hide"] as const).map((tool) => (
+                <button
+                  key={tool}
+                  onClick={() => activateFogTool(fogTool === tool ? null : tool)}
+                  className={`text-xs px-2 py-1 rounded font-medium capitalize transition-colors ${
+                    fogTool === tool
+                      ? tool === "reveal"
+                        ? "bg-green-700 text-white"
+                        : "bg-red-800 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                  title={tool === "reveal" ? "Drag to reveal map area" : "Drag to re-fog map area"}
+                >
+                  {tool}
+                </button>
+              ))}
+              <button
+                onClick={clearFog}
+                className="text-xs px-2 py-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+                title="Remove all fog reveals"
+              >
+                Clear
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Map controls overlay — bottom-right */}
       <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-gray-950/80 backdrop-blur-sm border border-gray-700 rounded-lg px-3 py-2">
