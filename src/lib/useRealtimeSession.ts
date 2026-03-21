@@ -125,7 +125,7 @@ export function useRealtimeSession(sessionId: string) {
 
       await channel.track({
         user_id: presenceKey,
-        player_name: playerName || "Anonymous",
+        player_name: (playerName || "Anonymous").trim().slice(0, 50),
         color: playerColor,
       });
 

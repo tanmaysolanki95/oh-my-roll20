@@ -73,6 +73,17 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     if (!file) return;
     setMapError("");
 
+    const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"];
+    const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setMapError("Only image files are allowed (PNG, JPG, GIF, WebP, SVG).");
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      setMapError("File too large — maximum 20 MB.");
+      return;
+    }
+
     const supabase = createClient();
     const ext = file.name.split(".").pop();
     const path = `${sessionId}/map.${ext}`;
