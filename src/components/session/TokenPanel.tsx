@@ -301,41 +301,59 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
 
               {/* HP controls */}
               {controllable ? (
-                <div className="space-y-1.5 rounded-lg bg-gray-900/40 px-2 py-1.5">
-                  {/* HP bar */}
-                  <div>
-                    <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${hpRatio * 100}%`,
-                          background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
-                        }}
-                      />
-                    </div>
-                    <div className="text-xs text-gray-400 text-center tabular-nums mt-0.5">
-                      {token.hp} / {token.max_hp}
+                <div className="rounded-lg bg-gray-900/40 px-2 py-1.5 space-y-1.5">
+                  {/* HP label + big fraction */}
+                  <div className="text-center">
+                    <div className="text-[9px] uppercase tracking-widest text-gray-500 font-semibold mb-0.5">Hit Points</div>
+                    <div className="text-xl font-bold tabular-nums text-gray-100 leading-none">
+                      {token.hp} <span className="text-xs text-gray-500 font-normal">/ {token.max_hp}</span>
                     </div>
                   </div>
-                  {/* Amount input + damage/heal buttons */}
-                  <div className="flex items-center gap-1">
+                  {/* HP bar */}
+                  <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${hpRatio * 100}%`,
+                        background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
+                      }}
+                    />
+                  </div>
+                  {/* Amount slider */}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-red-500 shrink-0">1</span>
+                      <input
+                        type="range"
+                        min={1}
+                        max={token.max_hp}
+                        value={hpAmount[token.id] ?? 1}
+                        onChange={(e) => setHpAmount((prev) => ({ ...prev, [token.id]: Number(e.target.value) }))}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 h-1.5 accent-indigo-500 cursor-pointer"
+                      />
+                      <span className="text-[10px] text-gray-500 shrink-0">{token.max_hp}</span>
+                    </div>
+                    <div className="text-center text-xs text-indigo-300 font-semibold mt-0.5 tabular-nums">
+                      {hpAmount[token.id] ?? 1} hp
+                    </div>
+                  </div>
+                  {/* Damage / Heal buttons */}
+                  <div className="flex gap-1.5">
                     <button
                       onClick={() => updateHp(token, -(hpAmount[token.id] ?? 1))}
-                      className="px-2 h-6 bg-gray-700 hover:bg-red-900 text-white rounded text-xs font-bold transition-colors shrink-0"
+                      className="flex-1 py-1 bg-red-950 hover:bg-red-900 text-red-200 rounded text-xs font-bold transition-colors"
                       title="Deal damage"
-                    >−</button>
-                    <input
-                      type="number"
-                      min={1}
-                      value={hpAmount[token.id] ?? 1}
-                      onChange={(e) => setHpAmount((prev) => ({ ...prev, [token.id]: Math.max(1, parseInt(e.target.value) || 1) }))}
-                      className="w-12 bg-gray-700 text-white text-xs text-center px-1 py-0.5 rounded border border-gray-600 focus:outline-none focus:border-indigo-500 tabular-nums"
-                    />
+                    >
+                      DAMAGE −{hpAmount[token.id] ?? 1}
+                    </button>
                     <button
                       onClick={() => updateHp(token, hpAmount[token.id] ?? 1)}
-                      className="px-2 h-6 bg-gray-700 hover:bg-green-900 text-white rounded text-xs font-bold transition-colors shrink-0"
+                      className="flex-1 py-1 bg-green-950 hover:bg-green-900 text-green-200 rounded text-xs font-bold transition-colors"
                       title="Heal"
-                    >+</button>
+                    >
+                      HEAL +{hpAmount[token.id] ?? 1}
+                    </button>
                   </div>
                   {token.hp === 0 && (
                     <button
