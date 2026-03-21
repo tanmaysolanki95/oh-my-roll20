@@ -1,5 +1,7 @@
 # oh-my-roll20
 
+<img src="public/favicon.svg" width="64" alt="oh-my-roll20 logo" />
+
 A lightweight virtual tabletop (VTT) for D&D sessions with friends. Built to be hosted entirely for free.
 
 ## Features

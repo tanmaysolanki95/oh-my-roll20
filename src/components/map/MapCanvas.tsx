@@ -7,7 +7,7 @@ import type Konva from "konva";
 import useImage from "use-image";
 import { createClient } from "@/lib/supabase/client";
 import { useSessionStore } from "@/store/session";
-import type { Token, FogShape } from "@/types";
+import type { FogShape } from "@/types";
 import { useAuth } from "@/lib/useAuth";
 import { clampStagePos, GRID_COLOR, DEFAULT_TOKEN_SIZE, VIRTUAL_SIZE, SCALE_BY, MIN_SCALE, MAX_SCALE } from "@/lib/mapUtils";
 import { useImageSize } from "@/lib/useImageSize";
@@ -64,7 +64,7 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
   const panStart = useRef({ x: 0, y: 0 });
   const panOrigin = useRef({ x: 0, y: 0 });
 
-  const { session, tokens, updateTokenPosition, upsertToken, setSession, userId } = useSessionStore();
+  const { session, tokens, updateTokenPosition, setSession, userId } = useSessionStore();
   const isOwner = !!userId && session?.owner_id === userId;
   const canControl = (tokenOwnerId: string | null) => isOwner || tokenOwnerId === userId;
 
@@ -152,12 +152,6 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
     updateTokenPosition(id, x, y);
     broadcastTokenDragEnd(id);
     await createClient().from("tokens").update({ x, y }).eq("id", id);
-  };
-
-  const handleHpChange = async (token: Token, delta: number) => {
-    const newHp = Math.max(0, Math.min(token.max_hp, token.hp + delta));
-    upsertToken({ ...token, hp: newHp });
-    await createClient().from("tokens").update({ hp: newHp }).eq("id", token.id);
   };
 
   const handleTokenSizeCommit = async (newSize: number) => {
@@ -323,7 +317,6 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
               <TokenShape
                 key={token.id}
                 token={token}
-                canControl={controllable}
                 draggable={controllable && !(isOwner && isLockedByOwner)}
                 opacity={isOwner && !(token.visible ?? true) ? 0.35 : 1}
                 tokenSize={token.size ?? DEFAULT_TOKEN_SIZE}
@@ -332,7 +325,6 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
                 onDragMove={handleDragMove}
                 onDragEnd={handleDragEnd}
                 onDragStart={broadcastTokenDragStart}
-                onHpChange={handleHpChange}
               />
             );
           })}

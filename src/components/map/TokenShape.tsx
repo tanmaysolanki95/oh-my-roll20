@@ -8,7 +8,6 @@ import { TOKEN_PADDING } from "@/lib/mapUtils";
 
 export interface TokenShapeProps {
   token: Token;
-  canControl: boolean;
   draggable: boolean;
   opacity: number;
   tokenSize: number;
@@ -17,12 +16,11 @@ export interface TokenShapeProps {
   onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
   onDragStart: (id: string) => void;
-  onHpChange: (token: Token, delta: number) => void;
 }
 
 export default function TokenShape({
-  token, canControl, draggable, opacity, tokenSize,
-  imageBounds, stageRef, onDragMove, onDragEnd, onDragStart, onHpChange,
+  token, draggable, opacity, tokenSize,
+  imageBounds, stageRef, onDragMove, onDragEnd, onDragStart,
 }: TokenShapeProps) {
   const hpRatio = Math.max(0, token.hp / token.max_hp);
   const radius = tokenSize / 2;
@@ -96,19 +94,6 @@ export default function TokenShape({
         fill={hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444"}
         cornerRadius={3}
       />
-      {/* HP +/- buttons — only for tokens you can control */}
-      {canControl && (
-        <>
-          <Circle radius={10} x={-radius - 14} y={0} fill="rgba(0,0,0,0.5)" stroke="#6b7280" strokeWidth={1}
-            onClick={() => onHpChange(token, -1)} onTap={() => onHpChange(token, -1)} />
-          <Text text="−" x={-radius - 21} y={-7} fontSize={13} fill="white"
-            onClick={() => onHpChange(token, -1)} onTap={() => onHpChange(token, -1)} />
-          <Circle radius={10} x={radius + 14} y={0} fill="rgba(0,0,0,0.5)" stroke="#6b7280" strokeWidth={1}
-            onClick={() => onHpChange(token, 1)} onTap={() => onHpChange(token, 1)} />
-          <Text text="+" x={radius + 8} y={-7} fontSize={13} fill="white"
-            onClick={() => onHpChange(token, 1)} onTap={() => onHpChange(token, 1)} />
-        </>
-      )}
     </Group>
   );
 }

@@ -4,7 +4,7 @@
 export const GRID_COLOR = "rgba(255,255,255,0.15)";
 export const DEFAULT_TOKEN_SIZE = 56;
 export const MIN_TOKEN_SIZE = 24;
-export const MAX_TOKEN_SIZE = 120;
+export const MAX_TOKEN_SIZE = 300;
 /** Extends well beyond the viewport so the grid stays visible while panning/zooming */
 export const VIRTUAL_SIZE = 6000;
 export const SCALE_BY = 1.12;

@@ -10,9 +10,7 @@ const COLORS = [
   "#a855f7", "#f97316", "#06b6d4", "#ec4899",
 ];
 
-const DEFAULT_TOKEN_SIZE = 56;
-const MIN_TOKEN_SIZE = 24;
-const MAX_TOKEN_SIZE = 120;
+import { MIN_TOKEN_SIZE, MAX_TOKEN_SIZE } from "@/lib/mapUtils";
 
 interface TokenPanelProps {
   sessionId: string;
@@ -22,6 +20,7 @@ interface TokenPanelProps {
 export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
   const { tokens, session, userId, upsertToken, removeToken: removeTokenFromStore } = useSessionStore();
   const [adding, setAdding] = useState(false);
+  const [pendingSize, setPendingSize] = useState<Record<string, number>>({});
   const [name, setName] = useState("");
   const [maxHp, setMaxHp] = useState(10);
   const [color, setColor] = useState(COLORS[0]);
@@ -64,7 +63,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
         x: spawn.x,
         y: spawn.y,
         // Stamp explicit size so changing the session default never retroactively resizes this token
-        size: session?.token_size ?? DEFAULT_TOKEN_SIZE,
+        size: session?.token_size ?? 56,
         // DM adds unclaimed tokens (null); players automatically own their tokens
         ...(!isOwner && userId ? { owner_id: userId } : {}),
       })
@@ -81,14 +80,6 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
     removeTokenFromStore(id); // optimistic
     const supabase = createClient();
     await supabase.from("tokens").delete().eq("id", id);
-  };
-
-  const updateHp = async (id: string, hp: number, tokenMaxHp: number) => {
-    const clamped = Math.max(0, Math.min(tokenMaxHp, hp));
-    const token = tokens.find((t) => t.id === id);
-    if (token) upsertToken({ ...token, hp: clamped }); // optimistic
-    const supabase = createClient();
-    await supabase.from("tokens").update({ hp: clamped }).eq("id", id);
   };
 
   const updateSize = async (token: Token, delta: number) => {
@@ -254,67 +245,42 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                 </div>
               </div>
 
-              {/* HP controls — only if you can control this token */}
-              {controllable ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => updateHp(token.id, token.hp - 1, token.max_hp)}
-                    className="w-6 h-6 bg-gray-700 hover:bg-red-900 text-white rounded text-sm font-bold transition-colors"
-                  >
-                    −
-                  </button>
-                  <div className="flex-1">
-                    <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${hpRatio * 100}%`,
-                          background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
-                        }}
-                      />
-                    </div>
-                    <div className="text-xs text-gray-400 text-center tabular-nums mt-0.5">
-                      {token.hp} / {token.max_hp}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => updateHp(token.id, token.hp + 1, token.max_hp)}
-                    className="w-6 h-6 bg-gray-700 hover:bg-green-900 text-white rounded text-sm font-bold transition-colors"
-                  >
-                    +
-                  </button>
+              {/* HP bar — read-only visual indicator */}
+              <div className="px-1">
+                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${hpRatio * 100}%`,
+                      background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
+                    }}
+                  />
                 </div>
-              ) : (
-                /* Read-only HP bar for tokens you don't own */
-                <div className="px-1">
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${hpRatio * 100}%`,
-                        background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
-                      }}
-                    />
-                  </div>
-                  <div className="text-xs text-gray-600 text-center tabular-nums mt-0.5">
-                    {token.hp} / {token.max_hp}
-                  </div>
+                <div className="text-xs text-gray-500 text-center tabular-nums mt-0.5">
+                  {token.hp} / {token.max_hp}
                 </div>
-              )}
+              </div>
 
-              {/* Size controls — token owner or DM */}
+              {/* Size slider — token owner or DM */}
               {controllable && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">Size</span>
-                  <button
-                    onClick={() => updateSize(token, -4)}
-                    className="w-5 h-5 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition-colors"
-                  >−</button>
-                  <span className="text-xs text-gray-400 tabular-nums w-6 text-center">{effectiveSize}</span>
-                  <button
-                    onClick={() => updateSize(token, 4)}
-                    className="w-5 h-5 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition-colors"
-                  >+</button>
+                  <span className="text-xs text-gray-500 shrink-0">Size</span>
+                  <input
+                    type="range"
+                    min={MIN_TOKEN_SIZE}
+                    max={MAX_TOKEN_SIZE}
+                    value={pendingSize[token.id] ?? effectiveSize}
+                    onChange={(e) => setPendingSize((prev) => ({ ...prev, [token.id]: Number(e.target.value) }))}
+                    onPointerUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      setPendingSize((prev) => { const next = { ...prev }; delete next[token.id]; return next; });
+                      updateSize(token, val - effectiveSize);
+                    }}
+                    className="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                  />
+                  <span className="text-xs text-gray-400 tabular-nums w-7 text-right shrink-0">
+                    {pendingSize[token.id] ?? effectiveSize}
+                  </span>
                 </div>
               )}
             </div>

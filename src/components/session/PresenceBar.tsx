@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSessionStore } from "@/store/session";
+import Logo from "@/components/ui/Logo";
 
 export default function PresenceBar({ isOwner }: { isOwner: boolean }) {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function PresenceBar({ isOwner }: { isOwner: boolean }) {
 
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-gray-900 border-b border-gray-800">
+      <Logo size={22} />
       <span className="text-xs text-gray-500 font-medium">{session?.name ?? "Session"}</span>
 
       <button
