@@ -26,6 +26,14 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [lobbyTheme, setLobbyTheme] = useState<"grimoire" | "scroll" | "neon">("grimoire");
+  const [mapFile, setMapFile] = useState<File | null>(null);
+
+  // Apply theme preview to <body> immediately when user picks a theme
+  useEffect(() => {
+    document.body.setAttribute("data-theme", lobbyTheme);
+  }, [lobbyTheme]);
+
   // Sync local inputs once useAuth() restores playerName/playerColor from localStorage
   useEffect(() => {
     if (playerName) setNameInput(playerName);
@@ -57,12 +65,25 @@ export default function Home() {
 
     const { data, error: err } = await supabase
       .from("sessions")
-      .insert({ name: sessionName.trim(), owner_id: uid })
+      .insert({ name: sessionName.trim(), owner_id: uid, theme: lobbyTheme })
       .select()
       .single();
 
+    if (err || !data) { setError(err?.message ?? "Failed to create session"); setLoading(false); return; }
+
+    // Optional map upload
+    if (mapFile) {
+      const ext = mapFile.name.split(".").pop() ?? "png";
+      const path = `${data.id}/map.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from("maps").upload(path, mapFile);
+      if (!uploadErr) {
+        const { data: urlData } = supabase.storage.from("maps").getPublicUrl(path);
+        await supabase.from("sessions").update({ map_url: urlData.publicUrl }).eq("id", data.id);
+      }
+      // Non-fatal: session still created; user can upload map from inside session
+    }
+
     setLoading(false);
-    if (err || !data) { setError(err?.message ?? "Failed to create session"); return; }
     router.push(`/session/${data.id}`);
   };
 
@@ -86,100 +107,211 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0f172a] text-white flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
+    <main className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
+      {/* Background image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: "var(--theme-lobby-bg)",
+          filter: "brightness(0.42) saturate(0.75)",
+        }}
+      />
+      {/* Ambient overlay */}
+      <div className="absolute inset-0"
+        style={{ background: "radial-gradient(ellipse at 50% 100%, var(--theme-bg-deep) 0%, transparent 70%), linear-gradient(180deg, rgba(0,0,0,0.3) 0%, var(--theme-bg-deep) 100%)" }}
+      />
 
-        {/* Hero */}
-        <div className="text-center space-y-3">
-          <div className="flex justify-center">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center shadow-[0_8px_32px_rgba(99,102,241,0.45)]">
-              <Logo size={48} />
-            </div>
+      {/* Glassmorphism card */}
+      <div className="relative z-10 w-full max-w-xs flex flex-col gap-4 rounded-xl p-6"
+        style={{
+          background: `color-mix(in srgb, var(--theme-bg-deep) 78%, transparent)`,
+          border: "1px solid var(--theme-border-accent)",
+          backdropFilter: "blur(12px)",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.65), 0 0 40px var(--theme-accent-glow)",
+        }}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: `linear-gradient(145deg, var(--theme-accent-dim), var(--theme-accent))`, boxShadow: "0 0 18px var(--theme-accent-glow)", border: "1px solid var(--theme-border-accent)" }}>
+            <Logo size={26} />
           </div>
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-white">oh-my-roll20</h1>
-            <p className="text-slate-500 text-sm mt-1">A VTT for friends, by friends</p>
+            <div className="font-bold leading-tight text-[var(--theme-text-primary)]"
+              style={{ fontFamily: "var(--theme-font-display)", fontSize: "1rem" }}>
+              oh-my-roll20
+            </div>
+            <div className="text-[0.6rem] uppercase tracking-widest text-[var(--theme-text-muted)]"
+              style={{ fontFamily: "var(--theme-font-display)" }}>
+              Virtual Tabletop
+            </div>
           </div>
         </div>
 
         {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-slate-800" />
-          <span className="text-[11px] text-slate-600 uppercase tracking-widest">Who are you?</span>
-          <div className="flex-1 h-px bg-slate-800" />
-        </div>
+        <div className="h-px" style={{ background: `linear-gradient(90deg, transparent, var(--theme-accent-dim) 30%, var(--theme-accent) 50%, var(--theme-accent-dim) 70%, transparent)`, opacity: 0.6 }} />
 
         {/* Identity */}
-        <div className="space-y-3">
+        <div className="flex flex-col gap-2">
+          <div className="text-[0.55rem] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)]"
+            style={{ fontFamily: "var(--theme-font-display)" }}>
+            Your Name
+          </div>
           <input
             type="text"
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
-            placeholder="Your name"
-            className="w-full bg-slate-800 text-white px-4 py-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm transition-all placeholder:text-slate-500"
+            placeholder="Adventurer"
+            className="w-full px-3 py-2 rounded-md text-sm transition-all placeholder:opacity-40 focus:outline-none"
+            style={{
+              background: `color-mix(in srgb, var(--theme-bg-deep) 85%, transparent)`,
+              border: "1px solid var(--theme-border)",
+              color: "var(--theme-text-primary)",
+              fontFamily: "var(--theme-font-body)",
+            }}
           />
-          <div className="flex gap-2 flex-wrap px-0.5">
+          <div className="flex gap-1.5 flex-wrap">
             {PLAYER_COLORS.map((c) => (
               <button
                 key={c}
                 onClick={() => setColorPick(c)}
                 style={{ background: c }}
-                className={`w-7 h-7 rounded-full transition-all ${colorPick === c ? "scale-125 ring-2 ring-white ring-offset-2 ring-offset-[#0f172a]" : "hover:scale-110 opacity-80 hover:opacity-100"}`}
-                title={c}
+                className={`w-5 h-5 rounded-full transition-all ${colorPick === c ? "scale-125 ring-2 ring-white ring-offset-1 ring-offset-[var(--theme-bg-deep)]" : "hover:scale-110 opacity-80 hover:opacity-100"}`}
               />
             ))}
           </div>
         </div>
 
-        {/* Create + Join side by side */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Divider */}
+        <div className="h-px" style={{ background: `linear-gradient(90deg, transparent, var(--theme-accent-dim) 30%, var(--theme-accent) 50%, var(--theme-accent-dim) 70%, transparent)`, opacity: 0.4 }} />
 
-          {/* New session */}
-          <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 space-y-3">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">New session</div>
-            <input
-              type="text"
-              value={sessionName}
-              onChange={(e) => setSessionName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && createSession()}
-              placeholder="Campaign name"
-              className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded-lg border border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder:text-slate-600"
-            />
-            <button
-              onClick={createSession}
-              disabled={loading}
-              className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-all shadow-md shadow-indigo-900/40"
-            >
-              Create
-            </button>
+        {/* Create section */}
+        <div className="flex flex-col gap-2">
+          <div className="text-[0.55rem] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)]"
+            style={{ fontFamily: "var(--theme-font-display)" }}>
+            New Session
+          </div>
+          <input
+            type="text"
+            value={sessionName}
+            onChange={(e) => setSessionName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && createSession()}
+            placeholder="Campaign name"
+            className="w-full px-3 py-2 rounded-md text-sm transition-all placeholder:opacity-40 focus:outline-none"
+            style={{
+              background: `color-mix(in srgb, var(--theme-bg-deep) 85%, transparent)`,
+              border: "1px solid var(--theme-border)",
+              color: "var(--theme-text-primary)",
+              fontFamily: "var(--theme-font-body)",
+            }}
+          />
+
+          {/* Theme picker */}
+          <div className="text-[0.5rem] uppercase tracking-[0.18em] text-[var(--theme-text-muted)] mt-1 mb-0.5"
+            style={{ fontFamily: "var(--theme-font-display)" }}>
+            Realm Theme
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(["grimoire", "scroll", "neon"] as const).map((t) => {
+              const labels = { grimoire: "💀 Grimoire", scroll: "📜 Scroll", neon: "🔮 Arcane" };
+              const active = lobbyTheme === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => setLobbyTheme(t)}
+                  className="rounded-md py-1.5 px-1 text-[10px] font-semibold border transition-all"
+                  style={{
+                    fontFamily: "var(--theme-font-display)",
+                    background: active ? `color-mix(in srgb, var(--theme-accent-dim) 20%, transparent)` : `color-mix(in srgb, var(--theme-bg-deep) 80%, transparent)`,
+                    borderColor: active ? "var(--theme-accent)" : "var(--theme-border)",
+                    color: active ? "var(--theme-text-primary)" : "var(--theme-text-muted)",
+                    boxShadow: active ? "0 0 8px var(--theme-accent-glow)" : "none",
+                  }}
+                >
+                  {labels[t]}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Join session */}
-          <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 space-y-3">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Join session</div>
+          {/* Map upload */}
+          <label
+            className="flex items-center gap-2 cursor-pointer rounded-md px-3 py-2 text-[0.65rem] transition-colors mt-1"
+            style={{
+              background: `color-mix(in srgb, var(--theme-accent-dim) 6%, transparent)`,
+              border: `1px dashed color-mix(in srgb, var(--theme-border-accent) 50%, transparent)`,
+              color: "var(--theme-text-secondary)",
+              fontFamily: "var(--theme-font-display)",
+            }}
+          >
+            <span>🗺️</span>
+            <span>{mapFile ? mapFile.name : "Upload battle map (optional)"}</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => setMapFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+
+          <button
+            onClick={createSession}
+            disabled={loading}
+            className="w-full py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all active:scale-[0.98] disabled:opacity-50 mt-1"
+            style={{
+              background: `linear-gradient(135deg, var(--theme-accent-dim), var(--theme-accent))`,
+              color: lobbyTheme === "scroll" ? "#0a0600" : "var(--theme-text-primary)",
+              fontFamily: "var(--theme-font-display)",
+              boxShadow: "0 0 16px var(--theme-accent-glow), 0 2px 8px rgba(0,0,0,0.4)",
+              border: "1px solid color-mix(in srgb, var(--theme-border-accent) 50%, transparent)",
+            }}
+          >
+            {loading ? "Forging…" : "Forge the Hall"}
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="h-px" style={{ background: `linear-gradient(90deg, transparent, var(--theme-accent-dim) 30%, var(--theme-accent) 50%, var(--theme-accent-dim) 70%, transparent)`, opacity: 0.3 }} />
+
+        {/* Join section */}
+        <div className="flex flex-col gap-2">
+          <div className="text-[0.55rem] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)]"
+            style={{ fontFamily: "var(--theme-font-display)" }}>
+            Join Session
+          </div>
+          <div className="flex gap-2">
             <input
               type="text"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && joinSession()}
               placeholder="A3F2B9"
-              className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded-lg border border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 font-mono tracking-widest transition-all placeholder:text-slate-600"
+              className="flex-1 px-3 py-2 rounded-md text-sm font-mono tracking-widest uppercase text-center transition-all placeholder:opacity-30 focus:outline-none"
+              style={{
+                background: `color-mix(in srgb, var(--theme-bg-deep) 85%, transparent)`,
+                border: "1px solid var(--theme-border)",
+                color: "var(--theme-text-primary)",
+              }}
             />
             <button
               onClick={joinSession}
               disabled={loading}
-              className="w-full py-2 bg-slate-700 hover:bg-slate-600 active:scale-[0.98] disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-all"
+              className="px-4 py-2 rounded-lg text-sm font-bold tracking-wider uppercase transition-all active:scale-[0.98] disabled:opacity-50"
+              style={{
+                background: `color-mix(in srgb, var(--theme-bg-deep) 80%, transparent)`,
+                border: "1px solid var(--theme-border-accent)",
+                color: "var(--theme-text-secondary)",
+                fontFamily: "var(--theme-font-display)",
+              }}
             >
-              Join
+              Enter
             </button>
           </div>
-
         </div>
 
         {error && (
           <p className="text-sm text-red-400 text-center">{error}</p>
         )}
-
       </div>
     </main>
   );
