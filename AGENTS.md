@@ -118,6 +118,22 @@ Tokens can display a portrait icon from the built-in library (`public/icons/`). 
 
 **Assets**: ~86 CC0 pixel-art portraits (32×32 upscaled to 128×128) from the Dungeon Crawl Stone Soup tile set, organized into `animals/`, `creatures/`, `fantasy/`, `humans/`.
 
+### Theme system
+
+Three named themes (Obsidian Grimoire / Arcane Scroll / Arcane Neon) are stored as `session.theme` (text, CHECK constraint) and propagate to all clients via the existing `postgres_changes` sessions handler.
+
+**CSS layer:** `[data-theme]` attribute blocks in `globals.css` define all `--theme-*` CSS custom properties. `layout.tsx` sets `data-theme="grimoire"` on `<body>` as the default. A `useEffect` in `SessionView` overrides it to `session.theme` on mount and on change.
+
+**Canvas layer:** `src/lib/themeTokens.ts` exports `getThemeTokens(theme): ThemeTokens` — a pure lookup function returning `fogColor`, `fogAdminOpacity`, `fogPreviewStroke`, and `tokenRing`. `SessionView` calls this and passes the result as a `themeTokens` prop to `MapCanvas`. `MapCanvas` mirrors it in `themeTokensRef` for stale-closure safety.
+
+**DM theme switcher:** In the DM tab, three buttons update `session.theme` optimistically via `setSession` then `await supabase.from('sessions').update(...)`.
+
+**Pitfalls:**
+- Never hardcode Tailwind color classes in components — use `var(--theme-*)` inline styles or CSS var references
+- The `fogColor` value replaces the hardcoded `"#0f172a"` fill in **all three** fog Rect usages in `FogLayer` (base rect + hide-zone rects)
+- `FogPreviewOutline` has a separate `fogPreviewStroke` prop — do not use `fogColor` for it
+- Semantic colors (HP green/yellow/red, damage red, heal green) are **not** theme-specific and must not be replaced by theme vars
+
 ---
 
 ## Key files and their responsibilities
@@ -136,6 +152,7 @@ Tokens can display a portrait icon from the built-in library (`public/icons/`). 
 | `src/components/session/TokenPanel.tsx` | Sidebar token list: add, visibility toggle, delete, per-token size, icon picker |
 | `src/components/session/IconPicker.tsx` | Inline icon picker with category tabs and thumbnail grid |
 | `src/lib/icons.ts` | Icon manifest — `ICONS[]`, `ICON_CATEGORIES`, `getIconsByCategory()` |
+| `src/lib/themeTokens.ts` | Theme token lookup — `getThemeTokens(theme): ThemeTokens` for Konva canvas values |
 | `public/icons/` | Static portrait PNGs organized by category (animals/creatures/fantasy/humans) |
 | `src/app/page.tsx` | Lobby — identity (name + color), two-column Create / Join grid, slate dark theme |
 | `src/app/session/[id]/SessionView.tsx` | Client shell: tabbed sidebar (👑 Dungeon Master / Tokens / Dice), lifted fog/size state, end session |
