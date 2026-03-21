@@ -65,8 +65,18 @@ export interface PresenceState {
   color: string;
 }
 
-export interface ParsedRoll {
-  count: number;
-  sides: number;
-  modifier: number;
+export type RollTerm =
+  | { kind: "dice"; sign: 1 | -1; count: number; sides: number }
+  | { kind: "flat";  sign: 1 | -1; value: number };
+
+export interface TermResult {
+  term: RollTerm;
+  rolls: number[];   // empty for flat terms
+  subtotal: number;  // signed contribution to the total (sign already applied)
+}
+
+export interface CompoundRollResult {
+  result: number;
+  breakdown: string;
+  termResults: TermResult[];
 }
