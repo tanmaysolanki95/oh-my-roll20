@@ -434,7 +434,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                             />
                             <span className="text-[10px] shrink-0" style={{ color: "var(--theme-text-muted)" }}>{token.max_hp}</span>
                           </div>
-                          <div className="text-center text-xs font-semibold mt-0.5 tabular-nums text-indigo-300">
+                          <div className="text-center text-xs font-semibold mt-0.5 tabular-nums" style={{ color: "var(--theme-accent)" }}>
                             {hpAmount[token.id] ?? 1} hp
                           </div>
                         </div>

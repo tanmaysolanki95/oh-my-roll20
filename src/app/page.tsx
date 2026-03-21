@@ -32,6 +32,7 @@ export default function Home() {
   // Apply theme preview to <body> immediately when user picks a theme
   useEffect(() => {
     document.body.setAttribute("data-theme", lobbyTheme);
+    return () => { document.body.setAttribute("data-theme", "grimoire"); };
   }, [lobbyTheme]);
 
   // Sync local inputs once useAuth() restores playerName/playerColor from localStorage

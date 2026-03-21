@@ -68,7 +68,9 @@ export default function MapCanvas({
     }
   }, [imageBounds, mapUrl, zoom.resetView]);
 
-  // Stale-closure ref for themeTokens (event handlers read .current).
+  // Stale-closure ref for themeTokens. Not read by current handlers (props path is used instead),
+  // but kept so any future long-lived event handler can safely read themeTokensRef.current
+  // without stale closure bugs — consistent with the pattern used for all other state in this file.
   const themeTokensRef = useRef(themeTokens);
   useEffect(() => { themeTokensRef.current = themeTokens; }, [themeTokens]);
 

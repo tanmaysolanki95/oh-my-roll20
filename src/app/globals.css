@@ -68,7 +68,7 @@
   --theme-border:          rgba(109,40,217,0.15);
   --theme-border-accent:   rgba(109,40,217,0.55);
   --theme-font-display:    var(--font-rajdhani-loaded), sans-serif;
-  --theme-font-body:       var(--font-rajdhani-loaded), sans-serif;
+  --theme-font-body:       var(--font-exo2-loaded), sans-serif;
   --theme-tab-border:      #7c3aed;
   --theme-lobby-bg:        url('https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1400&q=70');
 }
