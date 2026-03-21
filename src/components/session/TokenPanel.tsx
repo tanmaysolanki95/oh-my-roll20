@@ -11,6 +11,7 @@ const COLORS = [
 ];
 
 import { MIN_TOKEN_SIZE, MAX_TOKEN_SIZE } from "@/lib/mapUtils";
+import IconPicker from "@/components/session/IconPicker";
 
 interface TokenPanelProps {
   sessionId: string;
@@ -26,7 +27,9 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
   const [name, setName] = useState("");
   const [maxHp, setMaxHp] = useState(10);
   const [color, setColor] = useState(COLORS[0]);
+  const [iconPath, setIconPath] = useState<string | null>(null);
   const [addError, setAddError] = useState("");
+  const [openIconTokenId, setOpenIconTokenId] = useState<string | null>(null);
 
   const gridSize = session?.grid_size ?? 60;
   const mapUrl = session?.map_url ?? null;
@@ -66,6 +69,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
         y: spawn.y,
         // Stamp explicit size so changing the session default never retroactively resizes this token
         size: session?.token_size ?? 56,
+        image_url: iconPath,
         // DM adds unclaimed tokens (null); players automatically own their tokens
         ...(!isOwner && userId ? { owner_id: userId } : {}),
       })
@@ -75,6 +79,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
     if (data) upsertToken(data);
     setName("");
     setMaxHp(10);
+    setIconPath(null);
     setAdding(false);
   };
 
@@ -95,6 +100,13 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
     upsertToken({ ...token, visible: !token.visible });
     const supabase = createClient();
     await supabase.from("tokens").update({ visible: !token.visible }).eq("id", token.id);
+  };
+
+  const updateIcon = async (token: Token, path: string | null) => {
+    upsertToken({ ...token, image_url: path });
+    const supabase = createClient();
+    await supabase.from("tokens").update({ image_url: path }).eq("id", token.id);
+    setOpenIconTokenId(null);
   };
 
   const claimToken = async (id: string) => {
@@ -170,6 +182,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
               />
             ))}
           </div>
+          <IconPicker value={iconPath} onChange={setIconPath} />
           {addError && <p className="text-xs text-red-400">{addError}</p>}
           <button
             onClick={addToken}
@@ -206,10 +219,19 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                  <div
-                    className="w-4 h-4 rounded-full shrink-0"
-                    style={{ background: token.color }}
-                  />
+                  {/* Icon swatch — clickable for owner/DM to change */}
+                  <button
+                    type="button"
+                    onClick={() => controllable && setOpenIconTokenId(openIconTokenId === token.id ? null : token.id)}
+                    className={`w-6 h-6 rounded-full shrink-0 overflow-hidden border-2 transition-colors ${controllable ? "cursor-pointer hover:border-indigo-400" : "cursor-default"}`}
+                    style={{ borderColor: token.color, background: token.color }}
+                    title={controllable ? "Change icon" : undefined}
+                  >
+                    {token.image_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={token.image_url} alt="" className="w-full h-full object-cover" />
+                    )}
+                  </button>
                   <span className="text-sm font-medium text-white truncate">{token.name}</span>
                   {mine && (
                     <span className="text-xs text-indigo-400 shrink-0">you</span>
@@ -268,6 +290,14 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                   )}
                 </div>
               </div>
+
+              {/* Inline icon picker — opens when swatch is clicked by owner/DM */}
+              {controllable && openIconTokenId === token.id && (
+                <IconPicker
+                  value={token.image_url}
+                  onChange={(path) => updateIcon(token, path)}
+                />
+              )}
 
               {/* HP controls */}
               {controllable ? (
