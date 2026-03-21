@@ -51,7 +51,7 @@ export interface DiceRoll {
 // Realtime broadcast event payloads
 export type BroadcastEvent =
   | { type: "token_move"; token_id: string; x: number; y: number }
-  | { type: "dice_roll"; player_name: string; expression: string; result: number; breakdown: string }
+  | { type: "dice_roll"; roll_id: string; created_at: string; player_name: string; expression: string; result: number; breakdown: string }
   | { type: "session_ended" }
   | { type: "token_drag_start"; token_id: string; user_id: string }
   | { type: "token_drag_end"; token_id: string; user_id: string };

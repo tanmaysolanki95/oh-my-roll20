@@ -55,7 +55,10 @@ export const useSessionStore = create<SessionStore>((set) => ({
     })),
 
   addDiceRoll: (roll) =>
-    set((state) => ({ diceLog: [roll, ...state.diceLog].slice(0, 50) })),
+    set((state) => {
+      if (state.diceLog.some((r) => r.id === roll.id)) return state;
+      return { diceLog: [roll, ...state.diceLog].slice(0, 50) };
+    }),
 
   setPresence: (presence) => set({ presence }),
 
