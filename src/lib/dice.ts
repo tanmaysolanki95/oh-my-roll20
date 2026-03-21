@@ -1,53 +1,85 @@
-import type { ParsedRoll } from "@/types";
+import type { RollTerm, TermResult, CompoundRollResult } from "@/types";
 
-// Parses expressions like: d20, 3d6, 2d8+5, 1d20-2, d100
-const DICE_RE = /^(\d*)d(\d+)([+-]\d+)?$/i;
+const TOKEN_RE = /([+-]?)(\d*d\d+|\d+)/gi;
+const DICE_BODY_RE = /^(\d*)d(\d+)$/i;
 
-export function parseDiceExpression(expr: string): ParsedRoll | null {
-  const trimmed = expr.trim().replace(/\s/g, "");
-  const match = trimmed.match(DICE_RE);
-  if (!match) return null;
+export function parseCompoundExpression(expr: string): RollTerm[] | null {
+  const stripped = expr.replace(/\s/g, "");
+  if (!stripped) return null;
 
-  const count = match[1] === "" ? 1 : parseInt(match[1], 10);
-  const sides = parseInt(match[2], 10);
-  const modifier = match[3] ? parseInt(match[3], 10) : 0;
+  const terms: RollTerm[] = [];
+  let consumed = 0;
 
-  if (count < 1 || count > 100 || sides < 2 || sides > 1000) return null;
+  for (const match of stripped.matchAll(TOKEN_RE)) {
+    if (match.index !== consumed) return null; // gap = garbage char
+    consumed = match.index + match[0].length;
 
-  return { count, sides, modifier };
-}
+    if (terms.length >= 20) return null; // overflow guard
 
-export function rollDice(parsed: ParsedRoll): {
-  result: number;
-  rolls: number[];
-  breakdown: string;
-} {
-  const rolls: number[] = [];
-  for (let i = 0; i < parsed.count; i++) {
-    rolls.push(Math.floor(Math.random() * parsed.sides) + 1);
+    const signChar = match[1]; // "", "+", or "-"
+    const body = match[2];
+    const sign: 1 | -1 = signChar === "-" ? -1 : 1;
+    const isFirst = terms.length === 0;
+
+    const diceMatch = body.match(DICE_BODY_RE);
+    if (diceMatch) {
+      if (isFirst && sign === -1) return null; // leading negative dice term
+      const count = diceMatch[1] === "" ? 1 : parseInt(diceMatch[1], 10);
+      const sides = parseInt(diceMatch[2], 10);
+      if (count < 1 || count > 100) return null;
+      if (sides < 2 || sides > 1000) return null;
+      terms.push({ kind: "dice", sign, count, sides });
+    } else {
+      const value = parseInt(body, 10);
+      if (isNaN(value) || value > 10000) return null;
+      terms.push({ kind: "flat", sign, value });
+    }
   }
-  const sum = rolls.reduce((a, b) => a + b, 0) + parsed.modifier;
 
-  const rollStr = `[${rolls.join(", ")}]`;
-  const modStr =
-    parsed.modifier > 0
-      ? ` + ${parsed.modifier}`
-      : parsed.modifier < 0
-        ? ` - ${Math.abs(parsed.modifier)}`
-        : "";
-  const breakdown = `${rollStr}${modStr}`;
+  if (consumed !== stripped.length) return null; // trailing garbage
+  if (terms.length === 0) return null;
+  if (!terms.some(t => t.kind === "dice")) return null;
 
-  return { result: sum, rolls, breakdown };
+  return terms;
 }
 
-export function formatExpression(parsed: ParsedRoll): string {
-  const modStr =
-    parsed.modifier > 0
-      ? `+${parsed.modifier}`
-      : parsed.modifier < 0
-        ? `${parsed.modifier}`
-        : "";
-  return `${parsed.count}d${parsed.sides}${modStr}`;
+export function rollCompound(terms: RollTerm[]): CompoundRollResult {
+  const termResults: TermResult[] = [];
+  let result = 0;
+  const parts: string[] = [];
+
+  for (let i = 0; i < terms.length; i++) {
+    const term = terms[i];
+    const prefix = i === 0 ? "" : term.sign === 1 ? " + " : " - ";
+
+    if (term.kind === "dice") {
+      const rolls: number[] = [];
+      for (let j = 0; j < term.count; j++) {
+        rolls.push(Math.floor(Math.random() * term.sides) + 1);
+      }
+      const subtotal = term.sign * rolls.reduce((a, b) => a + b, 0);
+      result += subtotal;
+      termResults.push({ term, rolls, subtotal });
+      parts.push(`${prefix}[${rolls.join(", ")}]`);
+    } else {
+      const subtotal = term.sign * term.value;
+      result += subtotal;
+      termResults.push({ term, rolls: [], subtotal });
+      parts.push(`${prefix}${term.value}`);
+    }
+  }
+
+  return { result, breakdown: parts.join(""), termResults };
+}
+
+export function formatCompoundExpression(terms: RollTerm[]): string {
+  return terms
+    .map((term, i) => {
+      const prefix = i === 0 ? "" : term.sign === 1 ? "+" : "-";
+      if (term.kind === "dice") return `${prefix}${term.count}d${term.sides}`;
+      return `${prefix}${term.value}`;
+    })
+    .join("");
 }
 
 export const QUICK_DICE = [4, 6, 8, 10, 12, 20, 100] as const;
