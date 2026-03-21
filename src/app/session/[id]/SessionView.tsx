@@ -8,6 +8,7 @@ import { useRealtimeSession } from "@/lib/useRealtimeSession";
 import { useSessionStore } from "@/store/session";
 import { useAuth } from "@/lib/useAuth";
 import PresenceBar from "@/components/session/PresenceBar";
+import { cleanupSessionStorage } from "@/lib/cleanupSessionStorage";
 import TokenPanel from "@/components/session/TokenPanel";
 import DiceRoller from "@/components/dice/DiceRoller";
 import type { Session } from "@/types";
@@ -47,7 +48,10 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
   const endSession = async () => {
     broadcastSessionEnd();
-    await createClient().from("sessions").delete().eq("id", sessionId);
+    await Promise.all([
+      createClient().from("sessions").delete().eq("id", sessionId),
+      cleanupSessionStorage(sessionId),
+    ]);
     router.push("/");
   };
 
@@ -113,7 +117,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-white">
-      <PresenceBar isOwner={isOwner} />
+      <PresenceBar isOwner={isOwner} onEndSession={endSession} />
 
       <div className="flex flex-1 min-h-0">
         {/* Main map area */}
@@ -216,14 +220,6 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                   >+</button>
                 </div>
               </div>
-              {/* End session */}
-              <button
-                onClick={endSession}
-                className="w-full py-1 text-xs font-semibold text-red-400 hover:text-white hover:bg-red-700 border border-red-800 hover:border-red-700 rounded transition-colors"
-                title="Permanently delete this session and all its tokens and dice rolls"
-              >
-                End Session
-              </button>
             </div>
           )}
 

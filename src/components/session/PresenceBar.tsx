@@ -1,22 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { useSessionStore } from "@/store/session";
 import Logo from "@/components/ui/Logo";
 
-export default function PresenceBar({ isOwner }: { isOwner: boolean }) {
-  const router = useRouter();
+interface PresenceBarProps {
+  isOwner: boolean;
+  onEndSession: () => void;
+}
+
+export default function PresenceBar({ isOwner, onEndSession }: PresenceBarProps) {
   const { presence, session } = useSessionStore();
   const [confirming, setConfirming] = useState(false);
 
-  const endSession = async () => {
-    if (!session) return;
-    const supabase = createClient();
-    // Deleting the session cascades to tokens + dice_rolls
-    await supabase.from("sessions").delete().eq("id", session.id);
-    router.push("/");
+  const handleConfirm = () => {
+    setConfirming(false);
+    onEndSession();
   };
 
   return (
@@ -50,7 +49,7 @@ export default function PresenceBar({ isOwner }: { isOwner: boolean }) {
           <div className="ml-2 flex items-center gap-1">
             <span className="text-xs text-red-400">Delete everything?</span>
             <button
-              onClick={endSession}
+              onClick={handleConfirm}
               className="text-xs px-2 py-1 bg-red-700 hover:bg-red-600 text-white rounded transition-colors"
             >
               Yes
