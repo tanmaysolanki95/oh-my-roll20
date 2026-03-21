@@ -21,6 +21,7 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
   const { tokens, session, userId, upsertToken, removeToken: removeTokenFromStore } = useSessionStore();
   const [adding, setAdding] = useState(false);
   const [pendingSize, setPendingSize] = useState<Record<string, number>>({});
+  const [hpAmount, setHpAmount] = useState<Record<string, number>>({});
   const [name, setName] = useState("");
   const [maxHp, setMaxHp] = useState(10);
   const [color, setColor] = useState(COLORS[0]);
@@ -254,29 +255,40 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
 
               {/* HP controls */}
               {controllable ? (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateHp(token, -1)}
-                      className="w-6 h-6 bg-gray-700 hover:bg-red-900 text-white rounded text-sm font-bold transition-colors shrink-0"
-                    >−</button>
-                    <div className="flex-1">
-                      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${hpRatio * 100}%`,
-                            background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
-                          }}
-                        />
-                      </div>
-                      <div className="text-xs text-gray-400 text-center tabular-nums mt-0.5">
-                        {token.hp} / {token.max_hp}
-                      </div>
+                <div className="space-y-1.5">
+                  {/* HP bar */}
+                  <div>
+                    <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${hpRatio * 100}%`,
+                          background: hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#eab308" : "#ef4444",
+                        }}
+                      />
                     </div>
+                    <div className="text-xs text-gray-400 text-center tabular-nums mt-0.5">
+                      {token.hp} / {token.max_hp}
+                    </div>
+                  </div>
+                  {/* Amount input + damage/heal buttons */}
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={() => updateHp(token, 1)}
-                      className="w-6 h-6 bg-gray-700 hover:bg-green-900 text-white rounded text-sm font-bold transition-colors shrink-0"
+                      onClick={() => updateHp(token, -(hpAmount[token.id] ?? 1))}
+                      className="px-2 h-6 bg-gray-700 hover:bg-red-900 text-white rounded text-xs font-bold transition-colors shrink-0"
+                      title="Deal damage"
+                    >−</button>
+                    <input
+                      type="number"
+                      min={1}
+                      value={hpAmount[token.id] ?? 1}
+                      onChange={(e) => setHpAmount((prev) => ({ ...prev, [token.id]: Math.max(1, parseInt(e.target.value) || 1) }))}
+                      className="w-12 bg-gray-700 text-white text-xs text-center px-1 py-0.5 rounded border border-gray-600 focus:outline-none focus:border-indigo-500 tabular-nums"
+                    />
+                    <button
+                      onClick={() => updateHp(token, hpAmount[token.id] ?? 1)}
+                      className="px-2 h-6 bg-gray-700 hover:bg-green-900 text-white rounded text-xs font-bold transition-colors shrink-0"
+                      title="Heal"
                     >+</button>
                   </div>
                   {token.hp === 0 && (
