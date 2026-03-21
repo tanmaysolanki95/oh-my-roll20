@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { Stage, Layer, Image as KonvaImage, Line, Rect } from "react-konva";
 import useImage from "use-image";
 import { createClient } from "@/lib/supabase/client";
@@ -55,6 +55,15 @@ export default function MapCanvas({
     isOwner,
     fogTool,
   });
+
+  // Auto-fit the view whenever a new map URL loads (fires for DM and all players).
+  const lastResetMapUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (imageBounds && mapUrl && mapUrl !== lastResetMapUrlRef.current) {
+      zoom.resetView();
+      lastResetMapUrlRef.current = mapUrl;
+    }
+  }, [imageBounds, mapUrl, zoom.resetView]);
 
   // Panning
   const isPanning = useRef(false);
