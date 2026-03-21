@@ -11,6 +11,7 @@ import PresenceBar from "@/components/session/PresenceBar";
 import { cleanupSessionStorage } from "@/lib/cleanupSessionStorage";
 import TokenPanel from "@/components/session/TokenPanel";
 import DiceRoller from "@/components/dice/DiceRoller";
+import DiceToast from "@/components/dice/DiceToast";
 import { MIN_TOKEN_SIZE, MAX_TOKEN_SIZE } from "@/lib/mapUtils";
 import type { Session } from "@/types";
 
@@ -273,6 +274,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-white">
+      <DiceToast />
       <PresenceBar isOwner={isOwner} onEndSession={endSession} onLeave={() => router.push("/")} />
 
       <div className="flex flex-1 min-h-0">
