@@ -90,14 +90,6 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
     await supabase.from("tokens").update({ hp: newHp }).eq("id", token.id);
   };
 
-  const updateSize = async (token: Token, delta: number) => {
-    const current = token.size ?? session?.token_size ?? 56;
-    const newSize = Math.max(MIN_TOKEN_SIZE, Math.min(MAX_TOKEN_SIZE, current + delta));
-    upsertToken({ ...token, size: newSize }); // optimistic
-    const supabase = createClient();
-    await supabase.from("tokens").update({ size: newSize }).eq("id", token.id);
-  };
-
   const toggleVisible = async (token: Token) => {
     upsertToken({ ...token, visible: !token.visible });
     const supabase = createClient();
@@ -335,11 +327,19 @@ export default function TokenPanel({ sessionId, isOwner }: TokenPanelProps) {
                     min={MIN_TOKEN_SIZE}
                     max={MAX_TOKEN_SIZE}
                     value={pendingSize[token.id] ?? effectiveSize}
-                    onChange={(e) => setPendingSize((prev) => ({ ...prev, [token.id]: Number(e.target.value) }))}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setPendingSize((prev) => ({ ...prev, [token.id]: val }));
+                      // Update the store locally so the canvas token resizes in real-time
+                      // for this player. Other clients don't see it until the DB write below.
+                      upsertToken({ ...token, size: val });
+                    }}
                     onPointerUp={(e) => {
                       const val = Number((e.target as HTMLInputElement).value);
                       setPendingSize((prev) => { const next = { ...prev }; delete next[token.id]; return next; });
-                      updateSize(token, val - effectiveSize);
+                      // Persist — triggers postgres_changes on other clients
+                      const supabase = createClient();
+                      supabase.from("tokens").update({ size: val }).eq("id", token.id);
                     }}
                     className="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                   />

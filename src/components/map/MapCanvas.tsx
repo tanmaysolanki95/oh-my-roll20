@@ -31,7 +31,7 @@ function MapBackground({ url, width, height }: { url: string; width: number; hei
 export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart, broadcastTokenDragEnd, lockedBy }: MapCanvasProps) {
   useAuth();
 
-  const { session, tokens, updateTokenPosition, setSession, userId } = useSessionStore();
+  const { session, tokens, updateTokenPosition, setSession, upsertToken, userId } = useSessionStore();
   const isOwner = !!userId && session?.owner_id === userId;
   const canControl = (tokenOwnerId: string | null) => isOwner || tokenOwnerId === userId;
 
@@ -70,7 +70,14 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
     const s = useSessionStore.getState().session;
     if (!s) return;
     setSession({ ...s, token_size: newSize });
-    await createClient().from("sessions").update({ token_size: newSize }).eq("id", s.id);
+    const supabase = createClient();
+    // Resize all existing tokens in this session + update the session default
+    const currentTokens = useSessionStore.getState().tokens;
+    currentTokens.forEach(t => upsertToken({ ...t, size: newSize }));
+    await Promise.all([
+      supabase.from("sessions").update({ token_size: newSize }).eq("id", s.id),
+      supabase.from("tokens").update({ size: newSize }).eq("session_id", s.id),
+    ]);
   };
 
   // Grid lines (memoized — only recompute when grid dimensions change)
@@ -161,7 +168,7 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
                 token={token}
                 draggable={controllable && !(isOwner && isLockedByOwner) && (!isDead || isOwner)}
                 opacity={isOwner && !(token.visible ?? true) ? 0.35 : isDead ? 0.5 : 1}
-                tokenSize={token.size ?? DEFAULT_TOKEN_SIZE}
+                tokenSize={pendingTokenSize ?? token.size ?? DEFAULT_TOKEN_SIZE}
                 imageBounds={imageBounds}
                 stageRef={zoom.stageRef}
                 onDragMove={handleDragMove}
