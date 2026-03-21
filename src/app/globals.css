@@ -32,7 +32,7 @@
   --theme-font-display:    var(--font-cinzel-loaded), serif;
   --theme-font-body:       var(--font-crimson-loaded), serif;
   --theme-tab-border:      #dc2626;
-  --theme-lobby-bg:        url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=1400&q=70');
+  --theme-lobby-bg:        url('https://images.unsplash.com/photo-1683660108133-b173c2b4281b?w=1400&q=70');
 }
 
 /* ── Arcane Scroll ── */
@@ -51,7 +51,7 @@
   --theme-font-display:    var(--font-cinzel-loaded), serif;
   --theme-font-body:       var(--font-crimson-loaded), serif;
   --theme-tab-border:      #c9930a;
-  --theme-lobby-bg:        url('https://images.unsplash.com/photo-1520116468816-95b69f847357?w=1400&q=70');
+  --theme-lobby-bg:        url('https://images.unsplash.com/photo-1758730010177-1711515b7552?w=1400&q=70');
 }
 
 /* ── Arcane Neon ── */
@@ -70,7 +70,7 @@
   --theme-font-display:    var(--font-rajdhani-loaded), sans-serif;
   --theme-font-body:       var(--font-exo2-loaded), sans-serif;
   --theme-tab-border:      #7c3aed;
-  --theme-lobby-bg:        url('https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1400&q=70');
+  --theme-lobby-bg:        url('https://images.unsplash.com/photo-1740284448578-4da0f95d8dc9?w=1400&q=70');
 }
 
 body {
