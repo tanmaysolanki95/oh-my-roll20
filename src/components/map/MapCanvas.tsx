@@ -484,7 +484,8 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
           const fogOpacity = isOwner ? 0.65 : 1;
           return (
             <Layer listening={false} opacity={fogOpacity}>
-              <Rect width={gridWidth} height={gridHeight} fill={fogFill} />
+              {/* Cover entire virtual canvas — prevents sub-pixel bleed at map edges when zoomed */}
+              <Rect x={0} y={0} width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill={fogFill} />
               {(session.fog_shapes ?? []).map((shape, i) =>
                 shape.type === "reveal"
                   ? <Rect key={i} x={shape.x} y={shape.y} width={shape.w} height={shape.h}
@@ -504,7 +505,7 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
           );
         })()}
 
-        {/* Admin overlay: green outlines around revealed areas so boundaries are obvious */}
+        {/* Admin overlay: green tint over revealed areas — no per-shape borders to avoid overlap lines */}
         {isOwner && session?.fog_enabled && (
           <Layer listening={false}>
             {(session.fog_shapes ?? []).filter(s => s.type === "reveal").map((shape, i) => (
@@ -512,9 +513,7 @@ export default function MapCanvas({ broadcastTokenMove, broadcastTokenDragStart,
                 key={i}
                 x={shape.x} y={shape.y}
                 width={shape.w} height={shape.h}
-                fill="transparent"
-                stroke="#22c55e"
-                strokeWidth={1.5 / stageScale}
+                fill="rgba(34,197,94,0.25)"
               />
             ))}
           </Layer>
