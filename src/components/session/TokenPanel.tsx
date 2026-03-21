@@ -409,6 +409,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                             <input type="range" min={0} max={token.max_hp} value={token.hp}
                               className="flex-1 h-[3px] rounded-full cursor-pointer"
                               style={{ accentColor: "var(--theme-accent)" }}
+                              onChange={() => {}}
                               onPointerUp={async (e) => {
                                 const newHp = Number((e.target as HTMLInputElement).value);
                                 upsertToken({ ...token, hp: newHp });
