@@ -8,18 +8,27 @@ interface FogLayerProps {
   fogShapes: FogShape[];
   fogPreview: FogShape | null;
   isOwner: boolean;
+  /** Map image dimensions — used to color inside vs outside map differently */
+  mapWidth: number;
+  mapHeight: number;
 }
 
-/** Main fog layer — covers the entire virtual canvas and punches holes for reveals. */
-export function FogLayer({ fogShapes, fogPreview, isOwner }: FogLayerProps) {
-  // Admin: semi-transparent indigo so the map is still readable.
-  // Players: fully opaque black — nothing bleeds through.
-  const fogFill = isOwner ? "#1e1b4b" : "black";
-  const fogOpacity = isOwner ? 0.65 : 1;
+/** Main fog layer — covers the entire virtual canvas and punches holes for reveals.
+ *  Outside the map bounds: solid black.
+ *  Inside the map bounds (fogged): dark navy blue — so players can always
+ *  tell where the map begins and ends even with full fog. */
+export function FogLayer({ fogShapes, fogPreview, isOwner, mapWidth, mapHeight }: FogLayerProps) {
+  const fogFill = "#0f172a"; // dark navy — visible as blue-tinted vs pure black outside
+  const fogOpacity = isOwner ? 0.72 : 1;
 
   return (
     <Layer listening={false} opacity={fogOpacity}>
-      <Rect x={0} y={0} width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill={fogFill} />
+      {/* Outside the map: solid black */}
+      <Rect x={0} y={0} width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill="black" />
+      {/* Inside the map: dark navy blue (fogged by default, reveals punch through) */}
+      {mapWidth > 0 && mapHeight > 0 && (
+        <Rect x={0} y={0} width={mapWidth} height={mapHeight} fill={fogFill} />
+      )}
       {fogShapes.map((shape, i) =>
         shape.type === "reveal"
           ? <Rect key={i} x={shape.x} y={shape.y} width={shape.w} height={shape.h}
