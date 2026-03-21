@@ -20,18 +20,25 @@ export default function PresenceBar({ isOwner, onEndSession, onLeave }: Presence
   };
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-gray-900/80 backdrop-blur-md border-b border-white/5">
+    <div
+      className="flex items-center gap-3 px-4 py-2 backdrop-blur-md border-b"
+      style={{ background: "var(--theme-bg-surface)", borderColor: "var(--theme-border)" }}
+    >
       <Logo size={22} />
-      <span className="text-gray-700 select-none">|</span>
-      <span className="text-xs text-gray-400 font-medium">{session?.name ?? "Session"}</span>
+      <span className="select-none" style={{ color: "var(--theme-border)" }}>|</span>
+      <span className="text-xs font-medium" style={{ color: "var(--theme-text-secondary)" }}>{session?.name ?? "Session"}</span>
 
       <div className="flex items-center gap-1.5 ml-auto">
-        <span className="text-xs text-gray-500">{presence.length} connected</span>
+        <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{presence.length} connected</span>
         {presence.map((p) => (
           <div
             key={p.user_id}
-            className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-gray-800 hover:ring-2 hover:ring-indigo-500/60 transition-all shadow-sm cursor-default"
-            style={{ background: p.color }}
+            className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 hover:ring-2 transition-all shadow-sm cursor-default"
+            style={{
+              background: p.color,
+              color: "var(--theme-text-primary)",
+              borderColor: "var(--theme-bg-panel)",
+            }}
             title={p.player_name}
           >
             {p.player_name[0]?.toUpperCase()}
@@ -42,7 +49,10 @@ export default function PresenceBar({ isOwner, onEndSession, onLeave }: Presence
         {!isOwner && (
           <button
             onClick={onLeave}
-            className="ml-2 text-xs px-2 py-1 text-gray-500 hover:text-gray-300 transition-colors"
+            className="ml-2 text-xs px-2 py-1 transition-colors"
+            style={{ color: "var(--theme-text-muted)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--theme-text-primary)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--theme-text-muted)")}
           >
             ← Leave
           </button>
@@ -52,7 +62,8 @@ export default function PresenceBar({ isOwner, onEndSession, onLeave }: Presence
         {isOwner && (!confirming ? (
           <button
             onClick={() => setConfirming(true)}
-            className="text-xs px-2 py-1 text-gray-500 hover:text-red-400 transition-colors"
+            className="text-xs px-2 py-1 hover:text-red-400 transition-colors"
+            style={{ color: "var(--theme-text-muted)" }}
           >
             End Session
           </button>
@@ -67,7 +78,8 @@ export default function PresenceBar({ isOwner, onEndSession, onLeave }: Presence
             </button>
             <button
               onClick={() => setConfirming(false)}
-              className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+              className="text-xs px-2 py-1 rounded transition-colors"
+              style={{ background: "var(--theme-bg-panel)", color: "var(--theme-text-primary)" }}
             >
               No
             </button>
