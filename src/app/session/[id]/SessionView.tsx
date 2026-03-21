@@ -85,7 +85,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     // propagate the new map_url to all connected clients automatically.
     const { error: updateError } = await supabase
       .from("sessions")
-      .update({ map_url: data.publicUrl })
+      .update({ map_url: data.publicUrl, fog_enabled: true })
       .eq("id", sessionId);
 
     if (updateError) { setMapError(updateError.message); return; }
@@ -93,7 +93,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     // Update local store immediately (don't wait for the subscription round-trip)
     // Spread from the current store session to avoid clobbering other fields.
     const current = useSessionStore.getState().session;
-    if (current) setSession({ ...current, map_url: data.publicUrl });
+    if (current) setSession({ ...current, map_url: data.publicUrl, fog_enabled: true });
   };
 
   return (
