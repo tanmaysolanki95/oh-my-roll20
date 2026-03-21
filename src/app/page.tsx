@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSessionStore } from "@/store/session";
 import { useAuth } from "@/lib/useAuth";
+import Logo from "@/components/ui/Logo";
 
 const PLAYER_COLORS = [
   "#3b82f6", "#ef4444", "#22c55e", "#eab308",
@@ -82,7 +83,10 @@ export default function Home() {
     <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
         {/* Logo */}
-        <div className="text-center space-y-1">
+        <div className="text-center space-y-2">
+          <div className="flex justify-center">
+            <Logo size={64} />
+          </div>
           <h1 className="text-4xl font-black tracking-tight text-indigo-400">
             oh-my-roll20
           </h1>
