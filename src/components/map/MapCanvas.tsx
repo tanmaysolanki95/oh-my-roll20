@@ -208,7 +208,7 @@ export default function MapCanvas({
       >
         {/* Layer 1 — background: map image + grid */}
         <Layer>
-          <Rect name="background" x={0} y={0} width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill="rgba(0,0,0,0.001)" />
+          <Rect name="background" x={0} y={0} width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill={themeTokens.fogColor} />
           {mapUrl && imageSize.width > 0
             ? <MapBackground url={mapUrl} width={imageSize.width} height={imageSize.height} />
             : <Rect name="background" width={VIRTUAL_SIZE} height={VIRTUAL_SIZE} fill="#111827" />
