@@ -99,7 +99,7 @@ Each fog concern is a separate Konva Layer. Do not mix composite operations betw
 
 `token.visible` (boolean, DB default `true`) controls whether a token is shown to non-DM players. The DM can toggle visibility after creation via the Hide/Show button in the token list.
 
-**Creating hidden tokens:** The add token form (DM-only) has a "Hide Token" checkbox. When checked, the insert payload includes `visible: false`. The checkbox state **sticks** between additions — it is intentionally not reset after each add, so DMs can rapidly create multiple hidden NPCs. The checkbox is gated behind `isOwner` in both the JSX and the insert payload (`...(isOwner ? { visible: !startHidden } : {})`), preventing players from crafting hidden inserts via RLS bypass.
+**Creating hidden tokens:** The add token form (DM-only) has a "Hide Token" pill badge (amber when active, ghost-bordered when inactive). Clicking it toggles `startHidden`. When active, the insert payload includes `visible: false`. The badge state **sticks** between additions — it is intentionally not reset after each add, so DMs can rapidly create multiple hidden NPCs. The badge is gated behind `isOwner` in both the JSX and the insert payload (`...(isOwner ? { visible: !startHidden } : {})`), preventing players from crafting hidden inserts via RLS bypass.
 
 ### Token size
 
@@ -109,6 +109,10 @@ Effective token size = `token.size ?? session.token_size ?? DEFAULT_TOKEN_SIZE`
 - `token.size` is an explicit per-token override. `null` means "inherit from session default".
 - When a new token is inserted, stamp `size: session.token_size` explicitly so future changes to the default don't affect it.
 - `token.size_locked` — if `true`, the DM's batch resize (session-level slider) skips this token, and the per-token slider is disabled. The DM can lock/unlock tokens individually or all at once via "Lock all sizes" / "Unlock all sizes" in the DM tab.
+
+**Token size preview** — the color/icon swatch in each sidebar token row scales dynamically (20–48px) with the token's effective size. Formula: `PREVIEW_MIN + ((liveSize - MIN_TOKEN_SIZE) / (MAX_TOKEN_SIZE - MIN_TOKEN_SIZE)) * (PREVIEW_MAX - PREVIEW_MIN)`. Uses `pendingSize[token.id]` during slider drag so the swatch updates live.
+
+**Drag to place** — tokens are created with `placed: false` (migration 016). Unplaced tokens render in the sidebar with a `⠿` drag handle, dashed border, and "drag to map" hint — no HP controls or size slider. The DM or token owner (`canControl`) pointer-downs the handle → `onTokenDragStart(tokenId)` → `SessionView.draggingTokenId` state → `MapCanvas` detects `pointerup` on its container div → inverse stage transform → `handleTokenDrop(tokenId, worldX, worldY)` → sets `placed: true`, updates `x`/`y` optimistically and persists. Unplaced tokens are filtered from the canvas unconditionally (`t.placed !== false`) before the `isOwner || visible` filter, so neither DMs nor players see them on the map until placed.
 
 **Auto-fit map view** — `MapCanvas` watches for `mapUrl` changes. When `mapUrl` changes and `imageBounds` is ready (image loaded), it calls `zoom.resetView()` once via a `useEffect` + `lastResetMapUrlRef` guard. This fires for all connected clients because `session.map_url` propagates via `postgres_changes`.
 
@@ -189,11 +193,11 @@ Three named themes (Obsidian Grimoire / Arcane Scroll / Arcane Neon) are stored 
 | `src/lib/useRealtimeSession.ts` | All Supabase Realtime subscriptions; returns broadcast helpers and `lockedBy` |
 | `src/lib/mapUtils.ts` | Map constants (`VIRTUAL_SIZE`, `SCALE_BY`, `MIN/MAX_SCALE`, etc.) and `clampStagePos` |
 | `src/lib/useImageSize.ts` | Hook that returns `{width, height}` for a given image URL |
-| `src/components/map/MapCanvas.tsx` | Konva Stage orchestrator — zoom, pan, fog painting, auto-fit on map change. Accepts `fogTool`, `pendingTokenSize`, `tokenSizeScope` as props from SessionView. |
+| `src/components/map/MapCanvas.tsx` | Konva Stage orchestrator — zoom, pan, fog painting, auto-fit on map change, drag-to-place drop handler. Accepts `fogTool`, `pendingTokenSize`, `tokenSizeScope`, `draggingTokenId`, `onTokenDrop` as props from SessionView. |
 | `src/components/map/TokenShape.tsx` | Single token shape with drag, HP bar, portrait icon rendering |
 | `src/components/map/FogLayer.tsx` | `FogLayer`, `FogAdminOverlay`, `FogPreviewOutline` exports |
 | `src/components/map/MapControls.tsx` | HTML overlay for zoom in/out/reset — draggable, hidable (✕ to collapse, 🔍 to restore) |
-| `src/components/session/TokenPanel.tsx` | Sidebar token list: add, visibility toggle, delete, per-token size, icon picker |
+| `src/components/session/TokenPanel.tsx` | Sidebar token list: add (with Hide Token badge + drag-to-place), visibility toggle, delete, per-token size preview + slider, icon picker |
 | `src/components/session/IconPicker.tsx` | Inline icon picker with category tabs and thumbnail grid |
 | `src/components/dice/DiceRoller.tsx` | Dice roller sidebar panel — quick buttons (d4–d%), custom expression input, roll log, nat detection |
 | `src/components/dice/DiceToast.tsx` | Fixed-position toast overlay; auto-dismisses after 4s; only shows rolls < 10s old |
@@ -203,13 +207,13 @@ Three named themes (Obsidian Grimoire / Arcane Scroll / Arcane Neon) are stored 
 | `src/lib/themeTokens.ts` | Theme token lookup — `getThemeTokens(theme): ThemeTokens` for Konva canvas values |
 | `public/icons/` | Static portrait PNGs organized by category (animals/creatures/fantasy/humans) |
 | `src/app/page.tsx` | Lobby — identity (name + color), two-column Create / Join grid, slate dark theme |
-| `src/app/session/[id]/SessionView.tsx` | Client shell: tabbed sidebar (👑 Dungeon Master / Tokens / Dice), lifted fog/size state, end session |
+| `src/app/session/[id]/SessionView.tsx` | Client shell: tabbed sidebar (👑 Dungeon Master / Tokens / Dice), lifted fog/size/draggingTokenId state, end session |
 | `supabase/schema.sql` | Base schema — run this first on a new project |
-| `supabase/migrations/` | Incremental changes — apply in order (001 → 015) after schema.sql |
+| `supabase/migrations/` | Incremental changes — apply in order (001 → 016) after schema.sql |
 
 ---
 
-## RLS rules (as of migrations 001–015)
+## RLS rules (as of migrations 001–016)
 
 | Operation | Who |
 |---|---|
@@ -268,4 +272,6 @@ Three named themes (Obsidian Grimoire / Arcane Scroll / Arcane Neon) are stored 
 - **Flat term `value` is always positive in `RollTerm`** — the sign is the separate `sign` field (`1 | -1`). Never set `value` to a negative number. If you add a new dice-related function, enforce this invariant at the parse boundary.
 - **Nat detection must read per-die rolls, not the total** — check `rolls[0] === sides` from `termResults`, not the roll result. A `1d20+5` that rolls 20 is a nat 20 even though the total is 25.
 - **`addDiceRoll` is idempotent; do not pre-check before calling it** — the store already guards against duplicate `id`s. Call it unconditionally on both the roller side and the broadcast receiver side.
+- **Drag-to-place drop uses DOM-level `onPointerUp`, not Konva Stage events** — the drag originates in the HTML sidebar, so Konva Stage synthetic events don't fire. The handler is on the container `<div>` wrapping the Stage. Coordinate math uses the inverse stage transform: `worldX = (containerX - stage.x()) / stage.scaleX()` where `containerX = e.clientX - stage.container().getBoundingClientRect().left`. Never pass raw `clientX/Y` or use `stage.getPointerPosition()` (returns container-relative px, not world coords). Stage ref is `zoom.stageRef.current`.
+- **`placed !== false` not `placed === true`** — the canvas filter uses `t.placed !== false` to handle pre-migration tokens where `placed` may be `undefined`. Always use this form when filtering unplaced tokens.
 - **DiceToast recency check is intentional** — the 10-second `created_at` guard exists to suppress historical rolls loaded from DB on initial join. Do not remove it in pursuit of "showing all rolls".
