@@ -34,7 +34,7 @@ Never write to the DB without first updating the store. Never update only the st
 ### Realtime: two channels, different purposes
 
 ```
-Broadcast  →  token drag positions (throttled ~20fps), token_drag_start/end (lock), session_ended
+Broadcast  →  token drag positions (throttled ~20fps), token_drag_start/end (lock), dice_roll, session_ended
 postgres_changes  →  everything else (HP, position commit, fog, token visibility, session settings)
 ```
 
@@ -118,6 +118,44 @@ Tokens can display a portrait icon from the built-in library (`public/icons/`). 
 
 **Assets**: ~86 CC0 pixel-art portraits (32×32 upscaled to 128×128) from the Dungeon Crawl Stone Soup tile set, organized into `animals/`, `creatures/`, `fantasy/`, `humans/`.
 
+### Compound dice system
+
+Dice expressions support multi-term notation (e.g. `5d20+1d4-1d4+5`). The full API lives in `src/lib/dice.ts`.
+
+**Three exported functions:**
+
+- **`parseCompoundExpression(expr: string): RollTerm[] | null`** — tokenizes with `/([+-]?)(\d*d\d+|\d+)/gi`. Returns `null` for invalid input. Bare `dX` defaults count to 1. Validation: dice count 1–100, sides 2–1000, flat values ≤ 10,000, ≤ 20 terms total, at least one dice term required, no leading negative dice.
+- **`rollCompound(terms: RollTerm[]): CompoundRollResult`** — executes the roll. Returns `{result, breakdown, termResults}`. Breakdown format: `[15, 3, 18] + [2] - [3] + 5`.
+- **`formatCompoundExpression(terms: RollTerm[]): string`** — converts back to canonical compact form (no spaces) for display.
+
+**Types** (`src/types/index.ts`):
+
+```ts
+type RollTerm =
+  | { kind: "dice"; sign: 1 | -1; count: number; sides: number }
+  | { kind: "flat";  sign: 1 | -1; value: number };
+
+interface TermResult {
+  term: RollTerm;
+  rolls: number[];   // individual die rolls (empty for flat terms)
+  subtotal: number;  // signed sum (sign already applied)
+}
+
+interface CompoundRollResult {
+  result: number;
+  breakdown: string;
+  termResults: TermResult[];
+}
+```
+
+**Flat term invariant:** `value` is always positive; sign is the separate `sign` field. `-3` parses as `{kind:"flat", sign:-1, value:3}`, never `value:-3`.
+
+**Nat max/min detection** (in `DiceRoller.tsx`): scan `termResults` for single-die terms (`count === 1`). Nat max when `rolls[0] === sides`; nat 1 when `rolls[0] === 1`. Detection is on raw per-die values, not the total — `1d20+5` rolling 20 is correctly a nat 20 even though the total is 25. Nat max takes priority if both qualify; first match wins.
+
+**Real-time sharing:** dice rolls are broadcast (not persisted via `postgres_changes`) so all clients see results immediately. `addDiceRoll` in the store is **idempotent** — it checks `diceLog` for a duplicate `id` before inserting. This prevents double-display when the roller receives its own broadcast back, and when a broadcast arrives during the initial DB history load.
+
+**DiceToast** — a standalone fixed-position overlay (`top-4 right-4`, 280px) that watches `diceLog[0]?.id`. Only shows if `created_at` is < 10 seconds old (suppresses historical rolls loaded on join). 4-second auto-dismiss with slide-out animation. Single toast — each roll replaces the previous.
+
 ### Theme system
 
 Three named themes (Obsidian Grimoire / Arcane Scroll / Arcane Neon) are stored as `session.theme` (text, CHECK constraint) and propagate to all clients via the existing `postgres_changes` sessions handler.
@@ -151,17 +189,21 @@ Three named themes (Obsidian Grimoire / Arcane Scroll / Arcane Neon) are stored 
 | `src/components/map/MapControls.tsx` | HTML overlay for zoom in/out/reset — draggable, hidable (✕ to collapse, 🔍 to restore) |
 | `src/components/session/TokenPanel.tsx` | Sidebar token list: add, visibility toggle, delete, per-token size, icon picker |
 | `src/components/session/IconPicker.tsx` | Inline icon picker with category tabs and thumbnail grid |
+| `src/components/dice/DiceRoller.tsx` | Dice roller sidebar panel — quick buttons (d4–d%), custom expression input, roll log, nat detection |
+| `src/components/dice/DiceToast.tsx` | Fixed-position toast overlay; auto-dismisses after 4s; only shows rolls < 10s old |
+| `src/lib/dice.ts` | Compound dice API — `parseCompoundExpression`, `rollCompound`, `formatCompoundExpression`, `QUICK_DICE` |
+| `src/lib/dice.test.ts` | Vitest unit tests for the dice parser and roller |
 | `src/lib/icons.ts` | Icon manifest — `ICONS[]`, `ICON_CATEGORIES`, `getIconsByCategory()` |
 | `src/lib/themeTokens.ts` | Theme token lookup — `getThemeTokens(theme): ThemeTokens` for Konva canvas values |
 | `public/icons/` | Static portrait PNGs organized by category (animals/creatures/fantasy/humans) |
 | `src/app/page.tsx` | Lobby — identity (name + color), two-column Create / Join grid, slate dark theme |
 | `src/app/session/[id]/SessionView.tsx` | Client shell: tabbed sidebar (👑 Dungeon Master / Tokens / Dice), lifted fog/size state, end session |
 | `supabase/schema.sql` | Base schema — run this first on a new project |
-| `supabase/migrations/` | Incremental changes — apply in order (001 → 013) after schema.sql |
+| `supabase/migrations/` | Incremental changes — apply in order (001 → 015) after schema.sql |
 
 ---
 
-## RLS rules (as of migrations 001–013)
+## RLS rules (as of migrations 001–015)
 
 | Operation | Who |
 |---|---|
@@ -217,3 +259,7 @@ Three named themes (Obsidian Grimoire / Arcane Scroll / Arcane Neon) are stored 
 - **Favicon is `src/app/icon.svg`** (Next.js App Router file convention), not `public/favicon.ico`. The file in `public/favicon.svg` is a static fallback.
 - **Do not put `clipFunc` directly on a Konva `Image` node** — place it on a wrapping `Group` instead. The clip coordinate origin in a `with check` behaves inconsistently on leaf nodes; on a `Group` it reliably centers at (0, 0) of the group's local space.
 - **Storage `with check` must not use `split_part(name, '/', 1)`** — Supabase Storage does not reliably expose `name` in `with check` clauses for either INSERT or UPDATE. This causes "new row violates row-level security policy" even for valid session owners. The `split_part` pattern is safe **only** in `using` clauses (INSERT has no `using`; UPDATE/DELETE `using` evaluates against the existing row where `name` is reliable). Fix: simplify both INSERT and UPDATE `with check` to `bucket_id = 'maps' and auth.uid() is not null`. App-layer `isOwner` guards and the UPDATE `using` clause enforce actual ownership. See migrations 010 and 015.
+- **Flat term `value` is always positive in `RollTerm`** — the sign is the separate `sign` field (`1 | -1`). Never set `value` to a negative number. If you add a new dice-related function, enforce this invariant at the parse boundary.
+- **Nat detection must read per-die rolls, not the total** — check `rolls[0] === sides` from `termResults`, not the roll result. A `1d20+5` that rolls 20 is a nat 20 even though the total is 25.
+- **`addDiceRoll` is idempotent; do not pre-check before calling it** — the store already guards against duplicate `id`s. Call it unconditionally on both the roller side and the broadcast receiver side.
+- **DiceToast recency check is intentional** — the 10-second `created_at` guard exists to suppress historical rolls loaded from DB on initial join. Do not remove it in pursuit of "showing all rolls".
