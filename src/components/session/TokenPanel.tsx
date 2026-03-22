@@ -309,7 +309,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                 const hpRatio = token.max_hp > 0 ? token.hp / token.max_hp : 0;
                 const mine = token.owner_id === userId || (isOwner && token.owner_id === null);
                 const controllable = canControl(token.owner_id);
-                const effectiveSize = token.size ?? session?.token_size ?? 56;
+                const effectiveSize = token.size ?? session?.token_size ?? DEFAULT_TOKEN_SIZE;
                 const isDead = token.hp === 0;
                 const isHidden = isOwner && !(token.visible ?? true);
 
