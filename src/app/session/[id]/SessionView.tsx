@@ -353,31 +353,36 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
               <div className="flex-1 overflow-y-auto p-3 space-y-3">
 
                 {/* Invite code */}
-                <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
-                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">🔗 Invite Code</div>
-                  <p className="text-[11px] text-gray-500 mb-2">Share this code with players so they can join the session.</p>
+                <div className="rounded-xl p-3 border" style={{ background: "var(--theme-bg-panel)", borderColor: "var(--theme-border)" }}>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--theme-text-secondary)", fontFamily: "var(--theme-font-display)" }}>🔗 Invite Code</div>
+                  <p className="text-[11px] mb-2" style={{ color: "var(--theme-text-muted)" }}>Share this code with players so they can join the session.</p>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-lg font-black text-indigo-300 tracking-widest flex-1">{session?.join_code ?? "—"}</span>
-                    <button onClick={copyJoinCode} className="text-xs px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded-lg transition-colors shrink-0">
+                    <span className="font-mono text-lg font-black tracking-widest flex-1" style={{ color: "var(--theme-text-primary)", fontFamily: "var(--theme-font-display)" }}>{session?.join_code ?? "—"}</span>
+                    <button onClick={copyJoinCode} className="text-xs px-2.5 py-1 rounded-lg transition-colors shrink-0 border hover:opacity-80" style={{ background: "var(--theme-bg-deep)", color: "var(--theme-text-secondary)", borderColor: "var(--theme-border)" }}>
                       {codeCopied ? "✓ Copied!" : "📋 Copy"}
                     </button>
                   </div>
                 </div>
 
                 {/* Battle map */}
-                <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
-                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">🗺️ Battle Map</div>
-                  <p className="text-[11px] text-gray-500 mb-2">Upload the image players will fight on. Fog of war is enabled automatically when a map is loaded.</p>
+                <div className="rounded-xl p-3 border" style={{ background: "var(--theme-bg-panel)", borderColor: "var(--theme-border)" }}>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--theme-text-secondary)", fontFamily: "var(--theme-font-display)" }}>🗺️ Battle Map</div>
+                  <p className="text-[11px] mb-2" style={{ color: "var(--theme-text-muted)" }}>Upload the image players will fight on. Fog of war is enabled automatically when a map is loaded.</p>
                   <label className="block cursor-pointer">
-                    <div className={`w-full py-2 px-3 border border-dashed rounded-lg text-center text-xs transition-colors ${
-                      mapUploading ? "border-indigo-500/50 text-indigo-400 bg-indigo-950/20" : "border-gray-600 text-gray-400 hover:border-indigo-500/60 hover:text-gray-200 bg-gray-900/40"
-                    }`}>
+                    <div
+                      className="w-full py-2 px-3 border border-dashed rounded-lg text-center text-xs transition-colors"
+                      style={
+                        mapUploading
+                          ? { borderColor: "var(--theme-border-accent)", color: "var(--theme-text-secondary)", background: "transparent" }
+                          : { borderColor: "var(--theme-border)", color: "var(--theme-text-muted)", background: "transparent" }
+                      }
+                    >
                       {mapUploading ? "Uploading…" : session?.map_url ? "🔄 Replace map image" : "+ Upload image (PNG, JPG, WebP — max 20 MB)"}
                     </div>
                     <input type="file" accept="image/*" className="hidden" onChange={handleMapUpload} />
                   </label>
                   {mapError && <p className="text-xs text-red-400 mt-1.5">{mapError}</p>}
-                  {session?.map_url && !mapUploading && <p className="text-[11px] text-gray-600 mt-1.5">Map loaded ✓</p>}
+                  {session?.map_url && !mapUploading && <p className="text-[11px] mt-1.5" style={{ color: "var(--theme-text-muted)" }}>Map loaded ✓</p>}
                 </div>
 
                 {/* Theme switcher */}
