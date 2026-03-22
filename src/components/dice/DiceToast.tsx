@@ -25,7 +25,7 @@ export default function DiceToast() {
     setVisible(true);
 
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setVisible(false), 1500);
+    timerRef.current = setTimeout(() => setVisible(false), 1000);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
