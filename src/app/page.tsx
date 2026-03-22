@@ -144,7 +144,7 @@ export default function Home() {
             </div>
             <div className="text-[0.6rem] uppercase tracking-widest text-[var(--theme-text-muted)]"
               style={{ fontFamily: "var(--theme-font-display)" }}>
-              Virtual Tabletop
+              A VTT for friends, by friends
             </div>
           </div>
         </div>
@@ -267,7 +267,7 @@ export default function Home() {
               border: "1px solid color-mix(in srgb, var(--theme-border-accent) 50%, transparent)",
             }}
           >
-            {loading ? "Forging…" : "Forge the Hall"}
+            {loading ? "Creating…" : "Create Session"}
           </button>
         </div>
 

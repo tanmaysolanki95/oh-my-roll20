@@ -67,8 +67,8 @@
   --theme-text-muted:      #7c5fc4;
   --theme-border:          rgba(109,40,217,0.2);
   --theme-border-accent:   rgba(109,40,217,0.6);
-  --theme-font-display:    var(--font-rajdhani-loaded), sans-serif;
-  --theme-font-body:       var(--font-exo2-loaded), sans-serif;
+  --theme-font-display:    var(--font-cinzel-loaded), serif;
+  --theme-font-body:       var(--font-crimson-loaded), serif;
   --theme-tab-border:      #7c3aed;
   --theme-lobby-bg:        url('https://images.unsplash.com/photo-1740284448578-4da0f95d8dc9?w=1400&q=70');
 }
