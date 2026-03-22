@@ -10,7 +10,7 @@ const COLORS = [
   "#a855f7", "#f97316", "#06b6d4", "#ec4899",
 ];
 
-import { MIN_TOKEN_SIZE, MAX_TOKEN_SIZE } from "@/lib/mapUtils";
+import { MIN_TOKEN_SIZE, MAX_TOKEN_SIZE, DEFAULT_TOKEN_SIZE } from "@/lib/mapUtils";
 import IconPicker from "@/components/session/IconPicker";
 
 interface TokenPanelProps {
@@ -313,6 +313,15 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                 const isDead = token.hp === 0;
                 const isHidden = isOwner && !(token.visible ?? true);
 
+                const PREVIEW_MIN = 20;
+                const PREVIEW_MAX = 48;
+                const liveSize = pendingSize[token.id] ?? token.size ?? session?.token_size ?? DEFAULT_TOKEN_SIZE;
+                const previewSize = Math.round(
+                  PREVIEW_MIN +
+                  ((liveSize - MIN_TOKEN_SIZE) / (MAX_TOKEN_SIZE - MIN_TOKEN_SIZE)) *
+                  (PREVIEW_MAX - PREVIEW_MIN)
+                );
+
                 return (
                   <div
                     key={token.id}
@@ -330,8 +339,14 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                         <button
                           type="button"
                           onClick={() => controllable && setOpenIconTokenId(openIconTokenId === token.id ? null : token.id)}
-                          className={`w-6 h-6 rounded-full shrink-0 overflow-hidden border-2 transition-colors ${controllable ? "cursor-pointer hover:border-[var(--theme-border-accent)]" : "cursor-default"}`}
-                          style={{ borderColor: token.color, background: token.color }}
+                          className="rounded-full shrink-0 overflow-hidden border-2 transition-all"
+                          style={{
+                            width: previewSize,
+                            height: previewSize,
+                            borderColor: token.color,
+                            background: token.color,
+                            cursor: controllable ? "pointer" : "default",
+                          }}
                           title={controllable ? "Change icon" : undefined}
                         >
                           {token.image_url && (
