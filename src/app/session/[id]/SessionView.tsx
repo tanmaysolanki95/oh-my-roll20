@@ -332,7 +332,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap hover:opacity-75"
                 style={
                   activeTab === tab.id
                     ? { borderColor: "var(--theme-tab-border)", color: "var(--theme-text-primary)", fontFamily: "var(--theme-font-display)" }
