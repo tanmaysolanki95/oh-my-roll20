@@ -95,6 +95,12 @@ The fog uses Konva layer compositing:
 
 Each fog concern is a separate Konva Layer. Do not mix composite operations between layers — they interact in unexpected ways.
 
+### Token visibility and hidden creation
+
+`token.visible` (boolean, DB default `true`) controls whether a token is shown to non-DM players. The DM can toggle visibility after creation via the Hide/Show button in the token list.
+
+**Creating hidden tokens:** The add token form (DM-only) has a "Hide Token" checkbox. When checked, the insert payload includes `visible: false`. The checkbox state **sticks** between additions — it is intentionally not reset after each add, so DMs can rapidly create multiple hidden NPCs. The checkbox is gated behind `isOwner` in both the JSX and the insert payload (`...(isOwner ? { visible: !startHidden } : {})`), preventing players from crafting hidden inserts via RLS bypass.
+
 ### Token size
 
 Effective token size = `token.size ?? session.token_size ?? DEFAULT_TOKEN_SIZE`
