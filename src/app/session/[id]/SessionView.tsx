@@ -46,6 +46,8 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   const [fogTool, setFogTool] = useState<"reveal" | "hide" | null>(null);
   const [pendingTokenSize, setPendingTokenSize] = useState<number | null>(null);
   const [tokenSizeScope, setTokenSizeScope] = useState<"all" | "players">("all");
+  // Token drag-to-place: set when user starts dragging an unplaced token from sidebar
+  const [draggingTokenId, setDraggingTokenId] = useState<string | null>(null);
 
   // Name gate — shown when arriving via direct link without a saved name
   const [authChecked, setAuthChecked] = useState(false);
@@ -181,6 +183,17 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     await createClient().from("tokens").update({ size_locked: locked }).eq("session_id", current.id);
   };
 
+  const handleTokenDrop = async (tokenId: string, x: number, y: number) => {
+    const token = tokens.find(t => t.id === tokenId);
+    if (!token) return;
+    if (!isOwner && token.owner_id !== userId) return;
+    setDraggingTokenId(null);
+    upsertToken({ ...token, placed: true, x, y });
+    const supabase = createClient();
+    const { error } = await supabase.from('tokens').update({ placed: true, x, y }).eq('id', tokenId);
+    if (error) console.error('Failed to place token:', error.message);
+  };
+
   const handleMapUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isOwner) return;
     const file = e.target.files?.[0];
@@ -282,13 +295,14 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 text-white">
+    <div className="flex flex-col h-screen bg-gray-950 text-white" onPointerUp={() => setDraggingTokenId(null)}>
       <DiceToast />
       <PresenceBar isOwner={isOwner} onEndSession={endSession} onLeave={() => router.push("/")} />
 
       <div className="flex flex-1 min-h-0">
         {/* Main map area */}
         <div className="flex-1 min-w-0 relative p-2">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <MapCanvas
             sessionId={sessionId}
             broadcastTokenMove={broadcastTokenMove}
@@ -299,6 +313,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
             pendingTokenSize={pendingTokenSize}
             tokenSizeScope={tokenSizeScope}
             themeTokens={themeTokens}
+            {...({ draggingTokenId, onTokenDrop: handleTokenDrop } as any)}
           />
         </div>
 
@@ -619,7 +634,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
             {/* ── Tokens tab ── */}
             {activeTab === "tokens" && (
               <div className="flex-1 min-h-0 px-3 pb-3 pt-2 overflow-hidden flex flex-col">
-                <TokenPanel sessionId={sessionId} isOwner={isOwner} />
+                <TokenPanel sessionId={sessionId} isOwner={isOwner} onTokenDragStart={setDraggingTokenId} />
               </div>
             )}
 
