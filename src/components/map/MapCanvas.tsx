@@ -28,6 +28,8 @@ interface MapCanvasProps {
   /** Which tokens the session-level size slider affects */
   tokenSizeScope: "all" | "players";
   themeTokens: ThemeTokens;
+  draggingTokenId?: string | null;
+  onTokenDrop?: (tokenId: string, x: number, y: number) => void;
 }
 
 function MapBackground({ url, width, height }: { url: string; width: number; height: number }) {
@@ -38,6 +40,7 @@ function MapBackground({ url, width, height }: { url: string; width: number; hei
 export default function MapCanvas({
   broadcastTokenMove, broadcastTokenDragStart, broadcastTokenDragEnd,
   lockedBy, fogTool, pendingTokenSize, tokenSizeScope, themeTokens,
+  draggingTokenId, onTokenDrop,
 }: MapCanvasProps) {
   useAuth();
 
@@ -107,8 +110,19 @@ export default function MapCanvas({
     return lines;
   }, [gridEnabled, gridSize, gridWidth, gridHeight]);
 
+  const handleCanvasPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingTokenId || !onTokenDrop || !zoom.stageRef.current) return;
+    const stage = zoom.stageRef.current;
+    const container = stage.container().getBoundingClientRect();
+    const containerX = e.clientX - container.left;
+    const containerY = e.clientY - container.top;
+    const worldX = (containerX - stage.x()) / stage.scaleX();
+    const worldY = (containerY - stage.y()) / stage.scaleY();
+    onTokenDrop(draggingTokenId, worldX, worldY);
+  };
+
   return (
-    <div ref={zoom.containerRef} className="w-full h-full bg-black rounded-lg overflow-hidden relative">
+    <div ref={zoom.containerRef} className="w-full h-full bg-black rounded-lg overflow-hidden relative" onPointerUp={handleCanvasPointerUp}>
       <Stage
         ref={zoom.stageRef}
         width={zoom.size.width}
@@ -176,7 +190,8 @@ export default function MapCanvas({
 
         {/* Layer 4 — tokens (always above fog) */}
         <Layer>
-          {tokens.filter(t => isOwner || (t.visible ?? true)).map((token) => {
+          {tokens.filter(t => t.placed !== false)          // never render unplaced tokens on canvas
+            .filter(t => isOwner || (t.visible ?? true)).map((token) => {
             const controllable = canControl(token.owner_id);
             const isLockedByOwner = token.owner_id !== null && lockedBy[token.id] === token.owner_id;
             const isDead = token.hp === 0;

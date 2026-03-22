@@ -302,7 +302,6 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
       <div className="flex flex-1 min-h-0">
         {/* Main map area */}
         <div className="flex-1 min-w-0 relative p-2">
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <MapCanvas
             sessionId={sessionId}
             broadcastTokenMove={broadcastTokenMove}
@@ -313,7 +312,8 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
             pendingTokenSize={pendingTokenSize}
             tokenSizeScope={tokenSizeScope}
             themeTokens={themeTokens}
-            {...({ draggingTokenId, onTokenDrop: handleTokenDrop } as any)}
+            draggingTokenId={draggingTokenId}
+            onTokenDrop={handleTokenDrop}
           />
         </div>
 
