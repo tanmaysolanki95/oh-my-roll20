@@ -163,10 +163,10 @@ export default function Home() {
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
             placeholder="Adventurer"
-            className="w-full px-3 py-2 rounded-md text-sm transition-all placeholder:opacity-40 focus:outline-none"
+            className="w-full px-3 py-2 rounded-md text-sm transition-all placeholder:opacity-40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]/40"
             style={{
               background: `color-mix(in srgb, var(--theme-bg-deep) 85%, transparent)`,
-              border: "1px solid var(--theme-border)",
+              border: "1px solid color-mix(in srgb, var(--theme-border-accent) 65%, transparent)",
               color: "var(--theme-text-primary)",
               fontFamily: "var(--theme-font-body)",
             }}
@@ -198,10 +198,10 @@ export default function Home() {
             onChange={(e) => setSessionName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && createSession()}
             placeholder="Campaign name"
-            className="w-full px-3 py-2 rounded-md text-sm transition-all placeholder:opacity-40 focus:outline-none"
+            className="w-full px-3 py-2 rounded-md text-sm transition-all placeholder:opacity-40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]/40"
             style={{
               background: `color-mix(in srgb, var(--theme-bg-deep) 85%, transparent)`,
-              border: "1px solid var(--theme-border)",
+              border: "1px solid color-mix(in srgb, var(--theme-border-accent) 65%, transparent)",
               color: "var(--theme-text-primary)",
               fontFamily: "var(--theme-font-body)",
             }}
@@ -223,9 +223,9 @@ export default function Home() {
                   className="rounded-md py-1.5 px-1 text-[10px] font-semibold border transition-all"
                   style={{
                     fontFamily: "var(--theme-font-display)",
-                    background: active ? `color-mix(in srgb, var(--theme-accent-dim) 20%, transparent)` : `color-mix(in srgb, var(--theme-bg-deep) 80%, transparent)`,
-                    borderColor: active ? "var(--theme-accent)" : "var(--theme-border)",
-                    color: active ? "var(--theme-text-primary)" : "var(--theme-text-muted)",
+                    background: active ? `color-mix(in srgb, var(--theme-accent-dim) 25%, transparent)` : `color-mix(in srgb, var(--theme-bg-deep) 60%, transparent)`,
+                    borderColor: active ? "var(--theme-accent)" : "color-mix(in srgb, var(--theme-border-accent) 50%, transparent)",
+                    color: active ? "var(--theme-text-primary)" : "var(--theme-text-secondary)",
                     boxShadow: active ? "0 0 8px var(--theme-accent-glow)" : "none",
                   }}
                 >
@@ -261,7 +261,7 @@ export default function Home() {
             className="w-full py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all active:scale-[0.98] disabled:opacity-50 mt-1"
             style={{
               background: `linear-gradient(135deg, var(--theme-accent-dim), var(--theme-accent))`,
-              color: lobbyTheme === "scroll" ? "#0a0600" : "var(--theme-text-primary)",
+              color: "#ffffff",
               fontFamily: "var(--theme-font-display)",
               boxShadow: "0 0 16px var(--theme-accent-glow), 0 2px 8px rgba(0,0,0,0.4)",
               border: "1px solid color-mix(in srgb, var(--theme-border-accent) 50%, transparent)",
@@ -287,10 +287,10 @@ export default function Home() {
               onChange={(e) => setJoinCode(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && joinSession()}
               placeholder="A3F2B9"
-              className="flex-1 px-3 py-2 rounded-md text-sm font-mono tracking-widest uppercase text-center transition-all placeholder:opacity-30 focus:outline-none"
+              className="flex-1 px-3 py-2 rounded-md text-sm font-mono tracking-widest uppercase text-center transition-all placeholder:opacity-30 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]/40"
               style={{
                 background: `color-mix(in srgb, var(--theme-bg-deep) 85%, transparent)`,
-                border: "1px solid var(--theme-border)",
+                border: "1px solid color-mix(in srgb, var(--theme-border-accent) 65%, transparent)",
                 color: "var(--theme-text-primary)",
               }}
             />
@@ -299,9 +299,9 @@ export default function Home() {
               disabled={loading}
               className="shrink-0 px-3 py-2 rounded-lg text-sm font-bold tracking-wide uppercase transition-all active:scale-[0.98] disabled:opacity-50"
               style={{
-                background: `color-mix(in srgb, var(--theme-bg-deep) 80%, transparent)`,
+                background: `color-mix(in srgb, var(--theme-accent-dim) 35%, var(--theme-bg-deep))`,
                 border: "1px solid var(--theme-border-accent)",
-                color: "var(--theme-text-secondary)",
+                color: "var(--theme-text-primary)",
                 fontFamily: "var(--theme-font-display)",
               }}
             >
