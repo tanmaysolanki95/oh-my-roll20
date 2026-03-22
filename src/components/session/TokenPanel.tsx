@@ -263,7 +263,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
               className="flex items-center gap-1.5 self-start px-2 py-0.5 rounded text-xs font-medium border transition-colors"
               style={
                 startHidden
-                  ? { background: "rgba(120,53,15,0.4)", borderColor: "rgba(146,64,14,0.5)", color: "#fbbf24" }
+                  ? { background: "rgba(120,53,15,0.6)", borderColor: "rgba(146,64,14,0.5)", color: "#fbbf24" }
                   : { background: "transparent", borderColor: "var(--theme-border)", color: "var(--theme-text-muted)" }
               }
             >
