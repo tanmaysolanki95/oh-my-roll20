@@ -25,6 +25,12 @@ export function useRealtimeSession(sessionId: string) {
     userId,
   } = useSessionStore();
 
+  // Refs so the re-track effect always reads the latest values without re-subscribing
+  const playerNameRef = useRef(playerName);
+  const playerColorRef = useRef(playerColor);
+  useEffect(() => { playerNameRef.current = playerName; }, [playerName]);
+  useEffect(() => { playerColorRef.current = playerColor; }, [playerColor]);
+
   useEffect(() => {
     const supabase = createClient();
     const presenceKey = userId ?? crypto.randomUUID();
@@ -156,6 +162,18 @@ export function useRealtimeSession(sessionId: string) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
+
+  // Re-track presence whenever the player's name or color changes so the
+  // avatar initials in the presence bar always reflect the current value.
+  useEffect(() => {
+    const channel = channelRef.current;
+    if (!channel) return;
+    channel.track({
+      user_id: userId ?? "",
+      player_name: (playerName || "Anonymous").trim().slice(0, 50),
+      color: playerColor,
+    });
+  }, [playerName, playerColor, userId]);
 
   const broadcastTokenMove = (token_id: string, x: number, y: number) => {
     channelRef.current?.send({
