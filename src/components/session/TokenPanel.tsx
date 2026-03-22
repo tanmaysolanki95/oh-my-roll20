@@ -41,9 +41,6 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse, onTokenDrag
   const [openIconTokenId, setOpenIconTokenId] = useState<string | null>(null);
   const [startHidden, setStartHidden] = useState(false);
 
-  const gridSize = session?.grid_size ?? 60;
-  const mapUrl = session?.map_url ?? null;
-
   const canControl = (tokenOwnerId: string | null) =>
     isOwner || tokenOwnerId === userId;
 
