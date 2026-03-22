@@ -237,12 +237,13 @@ export default function Home() {
 
           {/* Map upload */}
           <label
-            className="flex items-center gap-2 cursor-pointer rounded-md px-3 py-2 text-[0.65rem] transition-colors mt-1"
+            className="flex items-center gap-2 cursor-pointer rounded-md px-3 py-2.5 text-xs font-semibold transition-all mt-1 hover:brightness-110 active:scale-[0.98]"
             style={{
-              background: `color-mix(in srgb, var(--theme-accent-dim) 6%, transparent)`,
-              border: `1px dashed color-mix(in srgb, var(--theme-border-accent) 50%, transparent)`,
-              color: "var(--theme-text-secondary)",
+              background: `color-mix(in srgb, var(--theme-accent-dim) 22%, var(--theme-bg-deep))`,
+              border: `1px solid color-mix(in srgb, var(--theme-border-accent) 70%, transparent)`,
+              color: "var(--theme-text-primary)",
               fontFamily: "var(--theme-font-display)",
+              boxShadow: "0 0 8px var(--theme-accent-glow)",
             }}
           >
             <span>🗺️</span>
