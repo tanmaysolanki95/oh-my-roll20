@@ -39,6 +39,7 @@ export interface Token {
   size: number | null;     // null = inherit session token_size
   size_locked: boolean;    // true = excluded from DM batch resize
   visible: boolean;        // false = hidden from non-admin players
+  placed: boolean;         // false = unplaced (sidebar only, not rendered on canvas)
 }
 
 export interface DiceRoll {
