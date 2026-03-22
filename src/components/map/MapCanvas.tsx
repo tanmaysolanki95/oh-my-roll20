@@ -30,7 +30,7 @@ interface MapCanvasProps {
   themeTokens: ThemeTokens;
   draggingTokenId?: string | null;
   onTokenDrop?: (tokenId: string, x: number, y: number) => void;
-  onDropValidChange?: (valid: boolean) => void;
+  onDropValidChange?: (valid: boolean | null) => void;
 }
 
 function MapBackground({ url, width, height }: { url: string; width: number; height: number }) {
@@ -139,7 +139,7 @@ export default function MapCanvas({
 
   const handleCanvasPointerLeave = () => {
     setIsValidHover(false);
-    onDropValidChange?.(false);
+    onDropValidChange?.(null);
   };
 
   const handleCanvasPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {

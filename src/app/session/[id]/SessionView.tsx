@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeSession } from "@/lib/useRealtimeSession";
@@ -48,6 +49,11 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   const [tokenSizeScope, setTokenSizeScope] = useState<"all" | "players">("all");
   // Token drag-to-place: set when user starts dragging an unplaced token from sidebar
   const [draggingTokenId, setDraggingTokenId] = useState<string | null>(null);
+  const [ghostPos, setGhostPos] = useState<{ x: number; y: number } | null>(null);
+  const [isDropValid, setIsDropValid] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (draggingTokenId) setIsDropValid(null);
+  }, [draggingTokenId]);
 
   // Name gate — shown when arriving via direct link without a saved name
   const [authChecked, setAuthChecked] = useState(false);
@@ -188,6 +194,8 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     if (!token) return;
     if (!isOwner && token.owner_id !== userId) return;
     setDraggingTokenId(null);
+    setGhostPos(null);
+    setIsDropValid(null);
     upsertToken({ ...token, placed: true, x, y });
     const supabase = createClient();
     const { error } = await supabase.from('tokens').update({ placed: true, x, y }).eq('id', tokenId);
@@ -295,7 +303,12 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 text-white" onPointerUp={() => setDraggingTokenId(null)}>
+    <>
+    <div
+      className="flex flex-col h-screen bg-gray-950 text-white"
+      onPointerMove={(e) => { if (draggingTokenId) setGhostPos({ x: e.clientX, y: e.clientY }); }}
+      onPointerUp={() => { setDraggingTokenId(null); setGhostPos(null); setIsDropValid(null); }}
+    >
       <DiceToast />
       <PresenceBar isOwner={isOwner} onEndSession={endSession} onLeave={() => router.push("/")} />
 
@@ -314,6 +327,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
             themeTokens={themeTokens}
             draggingTokenId={draggingTokenId}
             onTokenDrop={handleTokenDrop}
+            onDropValidChange={setIsDropValid}
           />
         </div>
 
@@ -649,5 +663,51 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
         </div>
       </div>
     </div>
+    {draggingTokenId && ghostPos && (() => {
+      const token = tokens.find(t => t.id === draggingTokenId);
+      if (!token) return null;
+      return createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            left: ghostPos.x,
+            top: ghostPos.y,
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            zIndex: 9999,
+            opacity: isDropValid === false ? 0.45 : 0.85,
+            transition: 'opacity 0.1s',
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              background: token.color,
+              border: isDropValid === false
+                ? '2px solid #ef4444'
+                : '2px solid rgba(255,255,255,0.5)',
+              boxShadow: isDropValid === false ? '0 0 0 2px rgba(239,68,68,0.3)' : undefined,
+            }}
+          />
+          <div
+            style={{
+              marginTop: 4,
+              textAlign: 'center',
+              fontSize: 11,
+              fontWeight: 600,
+              color: isDropValid === false ? '#ef4444' : 'rgba(255,255,255,0.85)',
+              textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {token.name}
+          </div>
+        </div>,
+        document.body
+      );
+    })()}
+    </>
   );
 }
