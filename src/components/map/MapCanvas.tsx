@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useMemo, useEffect, useState } from "react";
 import { Stage, Layer, Image as KonvaImage, Line, Rect } from "react-konva";
 import useImage from "use-image";
 import { createClient } from "@/lib/supabase/client";
@@ -30,6 +30,7 @@ interface MapCanvasProps {
   themeTokens: ThemeTokens;
   draggingTokenId?: string | null;
   onTokenDrop?: (tokenId: string, x: number, y: number) => void;
+  onDropValidChange?: (valid: boolean) => void;
 }
 
 function MapBackground({ url, width, height }: { url: string; width: number; height: number }) {
@@ -40,7 +41,7 @@ function MapBackground({ url, width, height }: { url: string; width: number; hei
 export default function MapCanvas({
   broadcastTokenMove, broadcastTokenDragStart, broadcastTokenDragEnd,
   lockedBy, fogTool, pendingTokenSize, tokenSizeScope, themeTokens,
-  draggingTokenId, onTokenDrop,
+  draggingTokenId, onTokenDrop, onDropValidChange,
 }: MapCanvasProps) {
   useAuth();
 
@@ -82,6 +83,15 @@ export default function MapCanvas({
   const panStart = useRef({ x: 0, y: 0 });
   const panOrigin = useRef({ x: 0, y: 0 });
 
+  const [isValidHover, setIsValidHover] = useState(false);
+
+  // Reset cursor state when drag ends
+  useEffect(() => {
+    if (!draggingTokenId) {
+      setIsValidHover(false);
+    }
+  }, [draggingTokenId]);
+
   const handleDragMove = (id: string, x: number, y: number) => {
     broadcastTokenMove(id, x, y);
   };
@@ -110,6 +120,28 @@ export default function MapCanvas({
     return lines;
   }, [gridEnabled, gridSize, gridWidth, gridHeight]);
 
+  const handleCanvasPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingTokenId || !zoom.stageRef.current) return;
+    const stage = zoom.stageRef.current;
+    const container = stage.container().getBoundingClientRect();
+    const containerX = e.clientX - container.left;
+    const containerY = e.clientY - container.top;
+    const worldX = (containerX - stage.x()) / stage.scaleX();
+    const worldY = (containerY - stage.y()) / stage.scaleY();
+    const valid = !!imageBounds &&
+      worldX >= imageBounds.x &&
+      worldY >= imageBounds.y &&
+      worldX <= imageBounds.x + imageBounds.width &&
+      worldY <= imageBounds.y + imageBounds.height;
+    setIsValidHover(valid);
+    onDropValidChange?.(valid);
+  };
+
+  const handleCanvasPointerLeave = () => {
+    setIsValidHover(false);
+    onDropValidChange?.(false);
+  };
+
   const handleCanvasPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!draggingTokenId || !onTokenDrop || !zoom.stageRef.current) return;
     const stage = zoom.stageRef.current;
@@ -118,11 +150,25 @@ export default function MapCanvas({
     const containerY = e.clientY - container.top;
     const worldX = (containerX - stage.x()) / stage.scaleX();
     const worldY = (containerY - stage.y()) / stage.scaleY();
+    if (
+      !imageBounds ||
+      worldX < imageBounds.x ||
+      worldY < imageBounds.y ||
+      worldX > imageBounds.x + imageBounds.width ||
+      worldY > imageBounds.y + imageBounds.height
+    ) return;
     onTokenDrop(draggingTokenId, worldX, worldY);
   };
 
   return (
-    <div ref={zoom.containerRef} className="w-full h-full bg-black rounded-lg overflow-hidden relative" onPointerUp={handleCanvasPointerUp}>
+    <div
+      ref={zoom.containerRef}
+      className="w-full h-full bg-black rounded-lg overflow-hidden relative"
+      style={draggingTokenId ? { cursor: isValidHover ? 'grabbing' : 'no-drop' } : undefined}
+      onPointerUp={handleCanvasPointerUp}
+      onPointerMove={handleCanvasPointerMove}
+      onPointerLeave={handleCanvasPointerLeave}
+    >
       <Stage
         ref={zoom.stageRef}
         width={zoom.size.width}
