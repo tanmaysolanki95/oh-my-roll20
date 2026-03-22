@@ -47,19 +47,6 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse, onTokenDrag
   const canControl = (tokenOwnerId: string | null) =>
     isOwner || tokenOwnerId === userId;
 
-  function getSpawnPosition(): Promise<{ x: number; y: number }> {
-    const defaultPos = { x: gridSize * 2, y: gridSize * 2 };
-    if (!mapUrl) return Promise.resolve(defaultPos);
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve({
-        x: Math.min(gridSize * 2, img.naturalWidth - gridSize),
-        y: Math.min(gridSize * 2, img.naturalHeight - gridSize),
-      });
-      img.onerror = () => resolve(defaultPos);
-      img.src = mapUrl;
-    });
-  }
 
   const addToken = async () => {
     if (!name.trim()) return;
