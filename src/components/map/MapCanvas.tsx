@@ -163,8 +163,8 @@ export default function MapCanvas({
   return (
     <div
       ref={zoom.containerRef}
-      className="w-full h-full bg-black rounded-lg overflow-hidden relative"
-      style={draggingTokenId ? { cursor: isValidHover ? 'grabbing' : 'no-drop' } : undefined}
+      className="w-full h-full rounded-lg overflow-hidden relative"
+      style={{ background: themeTokens.fogColor, ...(draggingTokenId ? { cursor: isValidHover ? 'grabbing' : 'no-drop' } : {}) }}
       onPointerUp={handleCanvasPointerUp}
       onPointerMove={handleCanvasPointerMove}
       onPointerLeave={handleCanvasPointerLeave}
