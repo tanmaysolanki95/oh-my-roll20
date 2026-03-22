@@ -242,6 +242,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse, onTokenDrag
             ))}
           </div>
           {isOwner && (
+            <div className="pt-1 -mb-1">
             <button
               type="button"
               onClick={() => setStartHidden(v => !v)}
@@ -254,6 +255,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse, onTokenDrag
             >
               🙈 Hide Token
             </button>
+            </div>
           )}
           <IconPicker value={iconPath} onChange={setIconPath} />
           {addError && <p className="text-xs text-red-400">{addError}</p>}
