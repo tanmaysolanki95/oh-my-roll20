@@ -22,7 +22,7 @@ Replace the `<input type="checkbox">` + `<label>` in the add token form with a s
 ### Visual states
 
 - **Off (not hidden):** ghost style — `border border-[var(--theme-border)] text-[var(--theme-text-muted)]`, transparent background
-- **On (will be hidden):** `bg-amber-950/60 border border-amber-800/50 text-amber-400` — identical to the "Hidden" badge already rendered on token rows (line 339 of `TokenPanel.tsx`)
+- **On (will be hidden):** `bg-amber-950/60 border border-amber-800/50 text-amber-400` — identical to the "Hidden" badge already rendered on token rows (line ~358 of `TokenPanel.tsx`)
 
 ### Behavior
 
@@ -54,7 +54,7 @@ const previewSize = Math.round(
 );
 ```
 
-- `effectiveSize` = `pendingSize[token.id] ?? token.size ?? session?.token_size ?? 56`
+- `effectiveSize` = `pendingSize[token.id] ?? token.size ?? session?.token_size ?? DEFAULT_TOKEN_SIZE` (import `DEFAULT_TOKEN_SIZE` from `@/lib/mapUtils` alongside the existing `MIN_TOKEN_SIZE` / `MAX_TOKEN_SIZE` imports)
 - Updates live as the slider moves (because `pendingSize` already drives re-renders)
 - Clamped to `PREVIEW_MIN`–`PREVIEW_MAX` so it doesn't overflow the row
 
@@ -94,7 +94,13 @@ placed: boolean; // false = unplaced (sidebar only, not on canvas)
 
 ### Canvas rendering
 
-`TokenShape` is only rendered when `token.placed !== false`. The canvas filter in `MapCanvas` (or the tokens mapping) skips unplaced tokens.
+Unplaced tokens are filtered out **unconditionally** — before the existing `isOwner || visible` check — so neither DMs nor players ever see an unplaced token on the canvas:
+
+```ts
+tokens
+  .filter(t => t.placed !== false)          // never render unplaced tokens on canvas
+  .filter(t => isOwner || (t.visible ?? true)) // existing visibility rule
+```
 
 ### Sidebar: unplaced token display
 
@@ -130,17 +136,23 @@ On the unplaced token row:
 - `draggingTokenId: string | null`
 - `onTokenDrop: (tokenId: string, x: number, y: number) => void`
 
-When `draggingTokenId` is set, the Konva `Stage` listens for `onPointerUp`. On `pointerUp`:
+When `draggingTokenId` is set, a DOM-level `onPointerUp` is added to the **canvas container `<div>`** (not a Konva Stage synthetic event) in `MapCanvas`. The drag starts in the HTML sidebar, so the `pointerup` fires on the DOM, not within the Konva context. The handler converts container-relative coordinates to world (stage) coordinates using the inverse stage transform:
 
 ```ts
-const stage = stageRef.current;
-const pos = stage.getPointerPosition(); // already in stage-local coordinates
-if (pos && draggingTokenId) {
-  onTokenDrop(draggingTokenId, pos.x, pos.y);
-}
+const handleCanvasPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  if (!draggingTokenId || !zoom.stageRef.current) return;
+  const stage = zoom.stageRef.current;
+  const container = stage.container().getBoundingClientRect();
+  const containerX = e.clientX - container.left;
+  const containerY = e.clientY - container.top;
+  // Apply inverse stage transform to get world coordinates
+  const worldX = (containerX - stage.x()) / stage.scaleX();
+  const worldY = (containerY - stage.y()) / stage.scaleY();
+  onTokenDrop(draggingTokenId, worldX, worldY);
+};
 ```
 
-`stage.getPointerPosition()` returns coordinates already accounting for stage scale and position — no manual coordinate math needed.
+This matches the same coordinate math used in `useFogPainting`. In `MapCanvas`, the stage ref lives at `zoom.stageRef` (returned from `useMapZoom`) — never reference a bare `stageRef`. `stage.x()`, `stage.y()`, `stage.scaleX()`, `stage.scaleY()` reflect the current pan/zoom state.
 
 ### Drop handler (SessionView)
 
@@ -173,14 +185,14 @@ Token owner OR session owner — mirrors existing update RLS (`canControl` logic
 | `supabase/migrations/016_placed.sql` | New: `placed` column |
 | `src/types/index.ts` | Add `placed: boolean` to `Token` |
 | `src/components/session/TokenPanel.tsx` | All three features; receives `onTokenDragStart` prop |
-| `src/app/session/[id]/SessionView.tsx` | `draggingTokenId` state, `handleTokenDrop`, pass props |
-| `src/components/map/MapCanvas.tsx` | Skip unplaced tokens, handle drop via `onPointerUp` on Stage |
+| `src/app/session/[id]/SessionView.tsx` | `draggingTokenId` state, `handleTokenDrop`, pass props to `MapCanvas` and `TokenPanel`; add `onPointerUp` on root div to clear `draggingTokenId` when pointer released outside canvas |
+| `src/components/map/MapCanvas.tsx` | Skip unplaced tokens; add `onPointerUp` to canvas container div for drop; add `draggingTokenId` + `onTokenDrop` props |
 
 ---
 
 ## Pitfalls
 
-- **`stage.getPointerPosition()` vs page coords** — always use `stage.getPointerPosition()` for drop position; it already accounts for stage transform. Never use raw `event.pageX/Y`.
+- **Coordinate math for drop** — `stage.getPointerPosition()` returns container-relative px, NOT world coordinates. Always apply the inverse stage transform: `worldX = (containerX - stage.x()) / stage.scaleX()`. The drop handler in `MapCanvas` must do this math; never pass raw `event.clientX/Y` or assume `getPointerPosition()` is already world-space. See `useFogPainting` for the same pattern.
 - **`placed` default** — migration default is `true` so existing tokens are unaffected. New tokens set `placed: false` explicitly in the insert.
 - **No spawn position needed** — `getSpawnPosition()` is no longer called on add. Remove or leave unused; do not delete if it might be needed for a future "place at default" feature.
 - **Unplaced tokens invisible to players** — unplaced tokens with `placed: false` should never be sent to players in the realtime stream. However, since RLS on SELECT is not currently filtering by `placed`, unplaced tokens will be visible in the sidebar to players who own them — this is correct and expected (they need to see them to drag them). Hidden + unplaced = visible to DM only (existing `visible` RLS behavior is unchanged).
