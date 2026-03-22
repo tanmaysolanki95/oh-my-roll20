@@ -17,6 +17,7 @@ interface TokenPanelProps {
   sessionId: string;
   isOwner: boolean;
   onCollapse?: () => void;
+  onTokenDragStart?: (tokenId: string) => void;
 }
 
 interface TokenGroup {
@@ -27,7 +28,7 @@ interface TokenGroup {
   tokens: Token[];
 }
 
-export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPanelProps) {
+export default function TokenPanel({ sessionId, isOwner, onCollapse, onTokenDragStart }: TokenPanelProps) {
   const { tokens, session, userId, presence, upsertToken, removeToken: removeTokenFromStore } = useSessionStore();
   const [adding, setAdding] = useState(false);
   const [pendingSize, setPendingSize] = useState<Record<string, number>>({});
@@ -64,7 +65,6 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
     if (!name.trim()) return;
     if (atLimit) { setAddError(`Token limit reached (max ${maxTokens}).`); return; }
     setAddError("");
-    const spawn = await getSpawnPosition();
     const supabase = createClient();
     const { data, error } = await supabase
       .from("tokens")
@@ -74,9 +74,10 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
         color,
         hp: maxHp,
         max_hp: maxHp,
-        x: spawn.x,
-        y: spawn.y,
-        size: session?.token_size ?? 56,
+        x: 0,
+        y: 0,
+        placed: false,
+        size: session?.token_size ?? DEFAULT_TOKEN_SIZE,
         image_url: iconPath,
         ...(isOwner ? { visible: !startHidden } : {}),
         ...(!isOwner && userId ? { owner_id: userId } : {}),
@@ -277,7 +278,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
             className="w-full py-1.5 text-sm font-bold rounded transition-colors"
             style={{ background: "var(--theme-accent)", color: "var(--theme-text-primary)" }}
           >
-            Add to Map
+            Create Token
           </button>
         </div>
       )}
@@ -306,6 +307,63 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
 
             <div className="space-y-2">
               {group.tokens.map((token) => {
+                // Unplaced token — drag handle row
+                if (!token.placed) {
+                  const canDrag = canControl(token.owner_id);
+                  return (
+                    <div
+                      key={token.id}
+                      className="rounded-xl p-2.5 border"
+                      style={{
+                        background: "var(--theme-bg-surface)",
+                        borderColor: "var(--theme-border)",
+                        borderStyle: "dashed",
+                        opacity: 0.85,
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        {/* Drag handle */}
+                        <span
+                          className="text-lg select-none shrink-0"
+                          style={{
+                            color: canDrag ? "var(--theme-text-secondary)" : "var(--theme-text-muted)",
+                            cursor: canDrag ? "grab" : "default",
+                          }}
+                          onPointerDown={(e) => {
+                            if (!canDrag || !onTokenDragStart) return;
+                            e.preventDefault();
+                            onTokenDragStart(token.id);
+                          }}
+                          title={canDrag ? "Drag onto the map to place" : undefined}
+                        >
+                          ⠿
+                        </span>
+                        {/* Color dot */}
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ background: token.color }} />
+                        {/* Name */}
+                        <span className="text-sm font-medium truncate flex-1" style={{ color: "var(--theme-text-primary)" }}>
+                          {token.name}
+                        </span>
+                        {/* Hint */}
+                        <span className="text-[10px] shrink-0" style={{ color: "var(--theme-text-muted)" }}>
+                          drag to map
+                        </span>
+                        {/* Delete */}
+                        {(isOwner || canControl(token.owner_id)) && (
+                          <button
+                            onClick={() => removeToken(token.id)}
+                            className="text-xs transition-colors hover:text-red-400 shrink-0"
+                            style={{ color: "var(--theme-text-muted)" }}
+                            title="Remove token"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
                 const hpRatio = token.max_hp > 0 ? token.hp / token.max_hp : 0;
                 const mine = token.owner_id === userId || (isOwner && token.owner_id === null);
                 const controllable = canControl(token.owner_id);
