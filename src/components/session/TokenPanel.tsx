@@ -256,7 +256,6 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
               />
             ))}
           </div>
-          <IconPicker value={iconPath} onChange={setIconPath} />
           {isOwner && (
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -274,6 +273,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
               </span>
             </label>
           )}
+          <IconPicker value={iconPath} onChange={setIconPath} />
           {addError && <p className="text-xs text-red-400">{addError}</p>}
           <button
             onClick={addToken}
