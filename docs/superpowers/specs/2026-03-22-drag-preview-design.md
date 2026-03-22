@@ -40,7 +40,7 @@ onPointerMove={(e) => {
 }}
 ```
 
-Clear `ghostPos` in the existing `onPointerUp` fallback:
+Update the existing `onPointerUp` fallback (preserve `setDraggingTokenId(null)`):
 
 ```tsx
 onPointerUp={() => { setDraggingTokenId(null); setGhostPos(null); setIsDropValid(false); }}
@@ -55,7 +55,7 @@ setIsDropValid(false);
 
 ### Ghost rendering
 
-Rendered in `SessionView`'s JSX, outside the main layout flow (at the end of the return, after the root div closes — or as a React portal to `document.body`). Use an inline fixed `<div>`:
+Rendered via `ReactDOM.createPortal` to `document.body`, so it sits above all stacking contexts and avoids z-index conflicts with the sidebar or canvas. Import `createPortal` from `react-dom`. Place the portal call at the end of the component's return value, inside a fragment alongside the root div:
 
 ```tsx
 {draggingTokenId && ghostPos && (() => {
@@ -228,4 +228,5 @@ When no map is loaded, `imageBounds` is `null`. `handleCanvasPointerMove` evalua
 - **Ghost must be `pointer-events: none`** — otherwise the ghost div intercepts pointer events and breaks the drop detection on the canvas container.
 - **`isValidHover` must reset on drag end** — when `draggingTokenId` becomes null, `isValidHover` should revert to `false` so the cursor style is removed. Use a `useEffect` in MapCanvas: `useEffect(() => { if (!draggingTokenId) setIsValidHover(false); }, [draggingTokenId])`.
 - **`imageBounds` coordinate system** — `imageBounds.x` and `imageBounds.y` are always `0` (the map image is always placed at the world origin). The check is simply `worldX >= 0 && worldY >= 0 && worldX <= width && worldY <= height`.
+- **`onPointerMove` on MapCanvas container does not interfere with pan/zoom** — the new `handleCanvasPointerMove` returns immediately if `!draggingTokenId`, so it is a no-op during normal map interaction. Existing pan/zoom event handling in `useMapZoom` operates on the Konva Stage's native events, not on this div's React pointer events.
 - **Do not use `zoom.imageBoundsRef`** — the `imageBounds` local variable is computed fresh on every render from `mapUrl` and `imageSize`; use it directly, not the ref. The ref exists for stale-closure safety in long-lived event handlers, but `handleCanvasPointerMove` and `handleCanvasPointerUp` are inline `const`s that close over the current render's values.
