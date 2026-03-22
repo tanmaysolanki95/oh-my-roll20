@@ -13,11 +13,13 @@ export default function MapControls({ stageScale, onZoomIn, onZoomOut, onResetVi
 
   const startDrag = (e: React.PointerEvent) => {
     e.preventDefault();
-    // When bottom-anchored (pos.y === -1), resolve actual top from DOM before dragging
-    // so the panel doesn't jump on first move.
+    // Resolve actual CSS top/left relative to the container so dragging from the
+    // bottom-anchored starting position (pos.y === -1) doesn't cause a jump.
     const el = (e.currentTarget as HTMLElement).closest<HTMLElement>(".absolute");
-    const rect = el?.getBoundingClientRect();
-    const resolvedY = rect ? rect.top : pos.y;
+    const container = el?.parentElement;
+    const panelRect = el?.getBoundingClientRect();
+    const containerRect = container?.getBoundingClientRect();
+    const resolvedY = panelRect && containerRect ? panelRect.top - containerRect.top : pos.y;
     const startX = e.clientX - pos.x;
     const startY = e.clientY - resolvedY;
     const onMove = (ev: PointerEvent) => setPos({ x: ev.clientX - startX, y: ev.clientY - startY });
