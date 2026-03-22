@@ -38,6 +38,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
   const [iconPath, setIconPath] = useState<string | null>(null);
   const [addError, setAddError] = useState("");
   const [openIconTokenId, setOpenIconTokenId] = useState<string | null>(null);
+  const [startHidden, setStartHidden] = useState(false);
 
   const gridSize = session?.grid_size ?? 60;
   const mapUrl = session?.map_url ?? null;
@@ -77,6 +78,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
         y: spawn.y,
         size: session?.token_size ?? 56,
         image_url: iconPath,
+        ...(isOwner ? { visible: !startHidden } : {}),
         ...(!isOwner && userId ? { owner_id: userId } : {}),
       })
       .select()
@@ -255,6 +257,23 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
             ))}
           </div>
           <IconPicker value={iconPath} onChange={setIconPath} />
+          {isOwner && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={startHidden}
+                onChange={(e) => setStartHidden(e.target.checked)}
+                className="rounded"
+                style={{ accentColor: "var(--theme-accent)" }}
+              />
+              <span
+                className="text-xs"
+                style={{ color: startHidden ? "#fbbf24" : "var(--theme-text-secondary)" }}
+              >
+                Hide Token
+              </span>
+            </label>
+          )}
           {addError && <p className="text-xs text-red-400">{addError}</p>}
           <button
             onClick={addToken}
