@@ -179,6 +179,14 @@ export default function MapCanvas({
         y={zoom.stagePos.y}
         onWheel={zoom.handleWheel}
         onMouseDown={(e) => {
+          if (e.evt.button === 1) {
+            // Middle mouse button — pan regardless of target
+            e.evt.preventDefault();
+            isPanning.current = true;
+            panStart.current = { x: e.evt.clientX, y: e.evt.clientY };
+            panOrigin.current = { ...zoom.stagePosRef.current };
+            return;
+          }
           if (fog.stageMouseDown(e)) return;
           if (e.target.name() === "background" || e.target.getClassName() === "Line") {
             isPanning.current = true;

@@ -75,13 +75,25 @@ export function useMapZoom(imageBounds: Bounds) {
 
   const handleWheel = useCallback((e: KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer) return;
-    const direction = e.evt.deltaY < 0 ? 1 : -1;
-    const newScale = Math.max(minZoom, Math.min(MAX_SCALE,
-      direction > 0 ? stageScaleRef.current * SCALE_BY : stageScaleRef.current / SCALE_BY
-    ));
-    setZoom(newScale, pointer.x, pointer.y);
+    if (e.evt.ctrlKey) {
+      // Pinch-to-zoom (Mac trackpad pinch sends ctrlKey=true) or ctrl+scroll
+      const pointer = stageRef.current?.getPointerPosition();
+      if (!pointer) return;
+      const direction = e.evt.deltaY < 0 ? 1 : -1;
+      const newScale = Math.max(minZoom, Math.min(MAX_SCALE,
+        direction > 0 ? stageScaleRef.current * SCALE_BY : stageScaleRef.current / SCALE_BY
+      ));
+      setZoom(newScale, pointer.x, pointer.y);
+    } else {
+      // Two-finger pan (trackpad) or scroll wheel pan
+      const raw = {
+        x: stagePosRef.current.x - e.evt.deltaX,
+        y: stagePosRef.current.y - e.evt.deltaY,
+      };
+      const newPos = clampStagePos(raw, stageScaleRef.current, sizeRef.current, imageBoundsRef.current);
+      stagePosRef.current = newPos;
+      setStagePos(newPos);
+    }
   }, [setZoom, minZoom]);
 
   const resetView = useCallback(() => {
