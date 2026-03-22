@@ -246,8 +246,8 @@ export default function Home() {
               boxShadow: "0 0 8px var(--theme-accent-glow)",
             }}
           >
-            <span>🗺️</span>
-            <span>{mapFile ? mapFile.name : "Upload battle map (optional)"}</span>
+            <span>{mapFile ? "✓" : "🗺️"}</span>
+            <span>{mapFile ? "Battle map ready" : "Upload battle map (optional)"}</span>
             <input
               type="file"
               accept="image/*"
