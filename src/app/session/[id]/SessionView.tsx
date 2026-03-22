@@ -420,18 +420,19 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                 )}
 
                 {/* Fog of war */}
-                <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
-                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">🌫️ Fog of War</div>
-                  <p className="text-[11px] text-gray-500 mb-3">Hide unexplored areas from players. Paint reveal or hide zones by dragging on the map.</p>
+                <div className="rounded-xl p-3 border" style={{ background: "var(--theme-bg-panel)", borderColor: "var(--theme-border)" }}>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--theme-text-secondary)", fontFamily: "var(--theme-font-display)" }}>🌫️ Fog of War</div>
+                  <p className="text-[11px] mb-3" style={{ color: "var(--theme-text-muted)" }}>Hide unexplored areas from players. Paint reveal or hide zones by dragging on the map.</p>
 
                   {/* On/Off toggle */}
                   <button
                     onClick={toggleFog}
-                    className={`w-full py-1.5 rounded-lg text-xs font-bold mb-2 transition-colors ${
+                    className="w-full py-1.5 rounded-lg text-xs font-bold mb-2 transition-colors"
+                    style={
                       session?.fog_enabled
-                        ? "bg-indigo-700 hover:bg-indigo-600 text-white"
-                        : "bg-gray-700 hover:bg-gray-600 text-gray-300"
-                    }`}
+                        ? { background: "var(--theme-accent)", color: "var(--theme-text-primary)", boxShadow: "0 0 8px var(--theme-accent-glow)" }
+                        : { background: "var(--theme-bg-panel)", color: "var(--theme-text-muted)", border: "1px solid var(--theme-border)" }
+                    }
                   >
                     {session?.fog_enabled ? "Fog is ON — players only see revealed areas" : "Fog is OFF — players see the whole map"}
                   </button>
@@ -444,12 +445,15 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                           onClick={() => { if (!fogAtLimit) setFogTool(fogTool === "reveal" ? null : "reveal"); }}
                           disabled={fogAtLimit}
                           className={`py-2 rounded-lg text-xs font-bold transition-colors ${
-                            fogAtLimit
-                              ? "bg-gray-800 text-gray-600 cursor-not-allowed"
-                              : fogTool === "reveal"
-                                ? "bg-green-700 text-white"
-                                : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                            fogAtLimit ? "bg-gray-800 text-gray-600 cursor-not-allowed"
+                            : fogTool === "reveal" ? "bg-green-700 text-white"
+                            : ""
                           }`}
+                          style={
+                            !fogAtLimit && fogTool !== "reveal"
+                              ? { background: "var(--theme-bg-panel)", color: "var(--theme-text-secondary)", border: "1px solid var(--theme-border)" }
+                              : {}
+                          }
                           title={fogAtLimit ? "Limit reached" : "Drag on the map to uncover an area for players"}
                         >
                           👁 Reveal area
@@ -458,12 +462,15 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                           onClick={() => { if (!fogAtLimit) setFogTool(fogTool === "hide" ? null : "hide"); }}
                           disabled={fogAtLimit}
                           className={`py-2 rounded-lg text-xs font-bold transition-colors ${
-                            fogAtLimit
-                              ? "bg-gray-800 text-gray-600 cursor-not-allowed"
-                              : fogTool === "hide"
-                                ? "bg-red-800 text-white"
-                                : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                            fogAtLimit ? "bg-gray-800 text-gray-600 cursor-not-allowed"
+                            : fogTool === "hide" ? "bg-red-800 text-white"
+                            : ""
                           }`}
+                          style={
+                            !fogAtLimit && fogTool !== "hide"
+                              ? { background: "var(--theme-bg-panel)", color: "var(--theme-text-secondary)", border: "1px solid var(--theme-border)" }
+                              : {}
+                          }
                           title={fogAtLimit ? "Limit reached" : "Drag on the map to re-fog an area"}
                         >
                           🌑 Hide area
@@ -476,20 +483,21 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                           Limit reached — undo or reset to continue.
                         </p>
                       ) : fogTool ? (
-                        <p className="text-[11px] text-indigo-400 text-center mb-2">
+                        <p className="text-[11px] text-center mb-2" style={{ color: "var(--theme-text-secondary)" }}>
                           {fogTool === "reveal" ? "Drag on the map to reveal an area →" : "Drag on the map to hide an area →"}
                         </p>
                       ) : null}
 
                       {/* Operation counter + Undo */}
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] text-gray-500">
+                        <span className="text-[11px]" style={{ color: "var(--theme-text-muted)" }}>
                           {fogHistory.length} / 50 fog operations
                         </span>
                         <button
                           onClick={undoFog}
                           disabled={fogHistory.length === 0}
-                          className="text-xs px-2.5 py-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 hover:text-white rounded-lg transition-colors"
+                          className="text-xs px-2.5 py-1 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-colors border hover:opacity-80"
+                          style={{ background: "var(--theme-bg-deep)", color: "var(--theme-text-secondary)", borderColor: "var(--theme-border)" }}
                           title="Undo last fog operation"
                         >
                           ↩ Undo last
@@ -498,7 +506,8 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
                       <button
                         onClick={clearFog}
-                        className="w-full py-1.5 rounded-lg text-xs text-gray-500 hover:text-white hover:bg-gray-700 border border-gray-700 hover:border-gray-600 transition-colors"
+                        className="w-full py-1.5 rounded-lg text-xs transition-colors border hover:opacity-80"
+                        style={{ color: "var(--theme-text-muted)", borderColor: "var(--theme-border)", background: "transparent" }}
                         title="Remove all fog zones — the whole map becomes fogged again"
                       >
                         Reset all fog zones
