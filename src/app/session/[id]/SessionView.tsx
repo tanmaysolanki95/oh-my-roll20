@@ -517,26 +517,30 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                 </div>
 
                 {/* Token default size */}
-                <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
-                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">⬤ Token Default Size</div>
-                  <p className="text-[11px] text-gray-500 mb-3">Resize all tokens at once. Locked tokens are skipped. Lock individual tokens in the Tokens tab.</p>
+                <div className="rounded-xl p-3 border" style={{ background: "var(--theme-bg-panel)", borderColor: "var(--theme-border)" }}>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--theme-text-secondary)", fontFamily: "var(--theme-font-display)" }}>⬤ Token Default Size</div>
+                  <p className="text-[11px] mb-3" style={{ color: "var(--theme-text-muted)" }}>Resize all tokens at once. Locked tokens are skipped. Lock individual tokens in the Tokens tab.</p>
                   {/* Lock all / Unlock all */}
                   <button
                     onClick={() => lockAllSizes(!allSizesLocked)}
-                    className="w-full py-1.5 rounded-lg text-xs font-bold mb-3 transition-colors bg-gray-700 hover:bg-gray-600 text-gray-300"
+                    className="w-full py-1.5 rounded-lg text-xs font-bold mb-3 transition-colors border hover:opacity-80"
+                    style={{ background: "var(--theme-bg-panel)", color: "var(--theme-text-secondary)", borderColor: "var(--theme-border)" }}
                   >
                     {allSizesLocked ? "🔓 Unlock all sizes" : "🔒 Lock all sizes"}
                   </button>
 
                   {/* Scope toggle */}
-                  <div className="flex rounded-lg overflow-hidden border border-gray-700 text-xs mb-3">
+                  <div className="flex rounded-lg overflow-hidden text-xs mb-3 border" style={{ borderColor: "var(--theme-border)" }}>
                     {(["all", "players"] as const).map((s) => (
                       <button
                         key={s}
                         onClick={() => setTokenSizeScope(s)}
-                        className={`flex-1 py-1.5 font-medium transition-colors ${
-                          tokenSizeScope === s ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                        }`}
+                        className="flex-1 py-1.5 font-medium transition-colors"
+                        style={
+                          tokenSizeScope === s
+                            ? { background: "var(--theme-accent)", color: "var(--theme-text-primary)" }
+                            : { background: "var(--theme-bg-deep)", color: "var(--theme-text-muted)" }
+                        }
                         title={s === "all" ? "Resize every token on the map" : "Resize only player-owned tokens"}
                       >
                         {s === "all" ? "All tokens" : "Players only"}
@@ -546,7 +550,7 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
                   {/* Slider */}
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] text-gray-600 shrink-0">{MIN_TOKEN_SIZE}</span>
+                    <span className="text-[10px] shrink-0" style={{ color: "var(--theme-text-muted)" }}>{MIN_TOKEN_SIZE}</span>
                     <input
                       type="range"
                       min={MIN_TOKEN_SIZE}
@@ -558,40 +562,42 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                         commitTokenSize(pendingTokenSize);
                         setPendingTokenSize(null);
                       }}
-                      className="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                      className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer"
+                      style={{ background: "var(--theme-border)", accentColor: "var(--theme-accent)" } as React.CSSProperties}
                     />
-                    <span className="text-[10px] text-gray-600 shrink-0">{MAX_TOKEN_SIZE}</span>
+                    <span className="text-[10px] shrink-0" style={{ color: "var(--theme-text-muted)" }}>{MAX_TOKEN_SIZE}</span>
                   </div>
-                  <div className="text-center text-xs text-gray-400 tabular-nums">
+                  <div className="text-center text-xs tabular-nums" style={{ color: "var(--theme-text-secondary)" }}>
                     {pendingTokenSize ?? tokenSize}px
                   </div>
                 </div>
 
                 {/* Player token limit */}
-                <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
-                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">🎭 Player Token Limit</div>
-                  <p className="text-[11px] text-gray-500 mb-2">How many tokens each player is allowed to place on the map.</p>
+                <div className="rounded-xl p-3 border" style={{ background: "var(--theme-bg-panel)", borderColor: "var(--theme-border)" }}>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--theme-text-secondary)", fontFamily: "var(--theme-font-display)" }}>🎭 Player Token Limit</div>
+                  <p className="text-[11px] mb-2" style={{ color: "var(--theme-text-muted)" }}>How many tokens each player is allowed to place on the map.</p>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => changeMaxTokens(-1)} className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors">−</button>
-                    <span className="text-base font-bold text-gray-100 tabular-nums w-8 text-center">{session?.max_tokens_per_player ?? 1}</span>
-                    <button onClick={() => changeMaxTokens(1)} className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors">+</button>
-                    <span className="text-xs text-gray-500">per player</span>
+                    <button onClick={() => changeMaxTokens(-1)} className="w-7 h-7 flex items-center justify-center rounded-lg text-base transition-colors border hover:opacity-80" style={{ background: "var(--theme-bg-deep)", color: "var(--theme-text-primary)", borderColor: "var(--theme-border)" }}>−</button>
+                    <span className="text-base font-bold tabular-nums w-8 text-center" style={{ color: "var(--theme-text-primary)" }}>{session?.max_tokens_per_player ?? 1}</span>
+                    <button onClick={() => changeMaxTokens(1)} className="w-7 h-7 flex items-center justify-center rounded-lg text-base transition-colors border hover:opacity-80" style={{ background: "var(--theme-bg-deep)", color: "var(--theme-text-primary)", borderColor: "var(--theme-border)" }}>+</button>
+                    <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>per player</span>
                   </div>
                 </div>
 
                 {/* Grid */}
-                <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
-                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">⊞ Grid</div>
-                  <p className="text-[11px] text-gray-500 mb-3">Toggle the grid overlay and adjust the cell size to match your map.</p>
+                <div className="rounded-xl p-3 border" style={{ background: "var(--theme-bg-panel)", borderColor: "var(--theme-border)" }}>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--theme-text-secondary)", fontFamily: "var(--theme-font-display)" }}>⊞ Grid</div>
+                  <p className="text-[11px] mb-3" style={{ color: "var(--theme-text-muted)" }}>Toggle the grid overlay and adjust the cell size to match your map.</p>
 
                   {/* On/Off toggle */}
                   <button
                     onClick={toggleGrid}
-                    className={`w-full py-1.5 rounded-lg text-xs font-bold mb-3 transition-colors ${
+                    className="w-full py-1.5 rounded-lg text-xs font-bold mb-3 transition-colors"
+                    style={
                       (session?.grid_enabled ?? true)
-                        ? "bg-indigo-700 hover:bg-indigo-600 text-white"
-                        : "bg-gray-700 hover:bg-gray-600 text-gray-300"
-                    }`}
+                        ? { background: "var(--theme-accent)", color: "var(--theme-text-primary)", boxShadow: "0 0 8px var(--theme-accent-glow)" }
+                        : { background: "var(--theme-bg-panel)", color: "var(--theme-text-muted)", border: "1px solid var(--theme-border)" }
+                    }
                   >
                     {(session?.grid_enabled ?? true) ? "Grid is ON" : "Grid is OFF"}
                   </button>
@@ -599,10 +605,10 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
                   {/* Cell size stepper */}
                   {(session?.grid_enabled ?? true) && (
                     <div className="flex items-center gap-2">
-                      <button onClick={() => changeGridSize(-10)} className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors">−</button>
-                      <span className="text-base font-bold text-gray-100 tabular-nums w-12 text-center">{session?.grid_size ?? 60}px</span>
-                      <button onClick={() => changeGridSize(10)} className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-base transition-colors">+</button>
-                      <span className="text-xs text-gray-500">cell size</span>
+                      <button onClick={() => changeGridSize(-10)} className="w-7 h-7 flex items-center justify-center rounded-lg text-base transition-colors border hover:opacity-80" style={{ background: "var(--theme-bg-deep)", color: "var(--theme-text-primary)", borderColor: "var(--theme-border)" }}>−</button>
+                      <span className="text-base font-bold tabular-nums w-12 text-center" style={{ color: "var(--theme-text-primary)" }}>{session?.grid_size ?? 60}px</span>
+                      <button onClick={() => changeGridSize(10)} className="w-7 h-7 flex items-center justify-center rounded-lg text-base transition-colors border hover:opacity-80" style={{ background: "var(--theme-bg-deep)", color: "var(--theme-text-primary)", borderColor: "var(--theme-border)" }}>+</button>
+                      <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>cell size</span>
                     </div>
                   )}
                 </div>
