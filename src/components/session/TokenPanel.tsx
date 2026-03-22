@@ -330,7 +330,7 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
                           {token.name}
                         </span>
                         {mine && (
-                          <span className="text-xs text-indigo-400 shrink-0">you</span>
+                          <span className="text-xs shrink-0" style={{ color: "var(--theme-accent)" }}>you</span>
                         )}
                         {isDead && (
                           <span className="text-xs px-1.5 py-0.5 rounded bg-red-950/60 text-red-400 border border-red-800/50 shrink-0">Dead</span>
