@@ -304,7 +304,8 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
 
         {/* Sidebar resize handle */}
         <div
-          className="w-1 shrink-0 cursor-col-resize bg-gray-800 hover:bg-indigo-500/60 active:bg-indigo-500 transition-colors"
+          className="w-1 shrink-0 cursor-col-resize transition-colors hover:opacity-80 active:opacity-100"
+          style={{ background: "var(--theme-accent)" }}
           onPointerDown={(e) => {
             e.preventDefault();
             const startX = e.clientX;
@@ -317,19 +318,26 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
         />
 
         {/* Right sidebar */}
-        <div className="shrink-0 bg-gray-900 border-l border-gray-800 flex flex-col" style={{ width: sidebarWidth }}>
+        <div
+          className="shrink-0 flex flex-col border-l"
+          style={{ width: sidebarWidth, background: "var(--theme-bg-deep)", borderColor: "var(--theme-border)" }}
+        >
 
           {/* Tab bar */}
-          <div className="flex border-b border-gray-800 bg-gray-900/80 shrink-0 overflow-x-auto">
+          <div
+            className="flex shrink-0 overflow-x-auto border-b"
+            style={{ background: "var(--theme-bg-surface)", borderColor: "var(--theme-border)" }}
+          >
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap"
+                style={
                   activeTab === tab.id
-                    ? "border-indigo-500 text-white"
-                    : "border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600"
-                }`}
+                    ? { borderColor: "var(--theme-tab-border)", color: "var(--theme-text-primary)", fontFamily: "var(--theme-font-display)" }
+                    : { borderColor: "transparent", color: "var(--theme-text-muted)" }
+                }
               >
                 <span>{tab.icon}</span>
                 <span>{tab.label}</span>
