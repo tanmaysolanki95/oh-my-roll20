@@ -257,21 +257,18 @@ export default function TokenPanel({ sessionId, isOwner, onCollapse }: TokenPane
             ))}
           </div>
           {isOwner && (
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={startHidden}
-                onChange={(e) => setStartHidden(e.target.checked)}
-                className="rounded"
-                style={{ accentColor: "var(--theme-accent)" }}
-              />
-              <span
-                className="text-xs"
-                style={{ color: startHidden ? "#fbbf24" : "var(--theme-text-secondary)" }}
-              >
-                Hide Token
-              </span>
-            </label>
+            <button
+              type="button"
+              onClick={() => setStartHidden(v => !v)}
+              className="flex items-center gap-1.5 self-start px-2 py-0.5 rounded text-xs font-medium border transition-colors"
+              style={
+                startHidden
+                  ? { background: "rgba(120,53,15,0.4)", borderColor: "rgba(146,64,14,0.5)", color: "#fbbf24" }
+                  : { background: "transparent", borderColor: "var(--theme-border)", color: "var(--theme-text-muted)" }
+              }
+            >
+              🙈 Hide Token
+            </button>
           )}
           <IconPicker value={iconPath} onChange={setIconPath} />
           {addError && <p className="text-xs text-red-400">{addError}</p>}
