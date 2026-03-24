@@ -37,15 +37,19 @@ In the add token form, below the color swatches and above the `IconPicker`, rend
 
 ### Insert payload
 
-Pass `visible: !startHidden` in the `addToken()` insert:
+Pass `visible` conditionally on `isOwner` in the `addToken()` insert, mirroring the existing `owner_id` pattern:
 
 ```ts
-visible: !startHidden,
+...(isOwner ? { visible: !startHidden } : {}),
 ```
+
+This ensures players cannot insert hidden tokens even if the UI guard is bypassed. RLS allows any authenticated user to INSERT a token, so the guard must also be in the payload.
 
 ### Cleanup
 
 `startHidden` is intentionally excluded from the post-add reset block. Name, maxHp, and iconPath reset; startHidden does not.
+
+The form closes after each add (`setAdding(false)` is unchanged). "Sticks" means the checkbox state is preserved when the DM opens the form again — not that the form stays open.
 
 ## What does NOT change
 

@@ -214,21 +214,39 @@ export default function SessionView({ sessionId, initialSession }: SessionViewPr
     if (file.size > MAX_BYTES) { setMapError("File too large — maximum 20 MB."); return; }
 
     setMapUploading(true);
+
+    // Get the auth token to pass to the server-side upload route.
+    // Storage INSERT is now locked to service_role only, so uploads
+    // must go through /api/upload-map which enforces ownership server-side.
     const supabase = createClient();
-    const ext = file.name.split(".").pop();
-    const path = `${sessionId}/map.${ext}`;
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    if (!authSession) { setMapError("Not authenticated."); setMapUploading(false); return; }
 
-    const { error: uploadError } = await supabase.storage.from("maps").upload(path, file, { upsert: true });
-    if (uploadError) { setMapError(uploadError.message); setMapUploading(false); return; }
+    const form = new FormData();
+    form.append("file", file);
+    form.append("sessionId", sessionId);
 
-    const { data } = supabase.storage.from("maps").getPublicUrl(path);
-    const { error: updateError } = await supabase.from("sessions").update({ map_url: data.publicUrl, fog_enabled: true }).eq("id", sessionId);
+    const res = await fetch("/api/upload-map", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${authSession.access_token}` },
+      body: form,
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setMapError((body as { error?: string }).error ?? "Upload failed.");
+      setMapUploading(false);
+      return;
+    }
+
+    const { url } = await res.json() as { url: string };
+    const { error: updateError } = await supabase.from("sessions").update({ map_url: url, fog_enabled: true }).eq("id", sessionId);
 
     setMapUploading(false);
     if (updateError) { setMapError(updateError.message); return; }
 
     const current = useSessionStore.getState().session;
-    if (current) setSession({ ...current, map_url: data.publicUrl, fog_enabled: true });
+    if (current) setSession({ ...current, map_url: url, fog_enabled: true });
     e.target.value = "";
   };
 

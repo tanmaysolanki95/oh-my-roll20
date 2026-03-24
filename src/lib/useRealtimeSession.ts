@@ -157,6 +157,19 @@ export function useRealtimeSession(sessionId: string) {
     channel.subscribe(async (status) => {
       if (status !== "SUBSCRIBED") return;
 
+      // Register session membership. Read userId from store at callback
+      // time (not from closure) so we get the value set by useAuth even
+      // if it wasn't available when this effect first ran.
+      const currentUserId = useSessionStore.getState().userId;
+      if (currentUserId) {
+        await supabase
+          .from("session_members")
+          .upsert(
+            { session_id: sessionId, user_id: currentUserId },
+            { onConflict: "session_id,user_id" }
+          );
+      }
+
       await channel.track({
         user_id: presenceKey,
         player_name: (playerName || "Anonymous").trim().slice(0, 50),
