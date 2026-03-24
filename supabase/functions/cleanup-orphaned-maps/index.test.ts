@@ -1,5 +1,5 @@
 // supabase/functions/cleanup-orphaned-maps/index.test.ts
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { runCleanup } from "./index.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -83,30 +83,25 @@ Deno.test("orphaned prefix with no files — skipped, not an error", async () =>
 });
 
 Deno.test("storage root list fails — throws", async () => {
-  let threw = false;
-  try {
-    await runCleanup(
-      makeMock({ listRoot: { data: [], error: { message: "network error" } } }),
-    );
-  } catch {
-    threw = true;
-  }
-  assertEquals(threw, true);
+  await assertRejects(
+    () => runCleanup(makeMock({ listRoot: { data: [], error: { message: "network error" } } })),
+    Error,
+    "Storage list failed: network error",
+  );
 });
 
 Deno.test("sessions query fails — throws", async () => {
-  let threw = false;
-  try {
-    await runCleanup(
-      makeMock({
-        listRoot: { data: [{ name: "sess-1" }], error: null },
-        sessions: { data: [], error: { message: "db error" } },
-      }),
-    );
-  } catch {
-    threw = true;
-  }
-  assertEquals(threw, true);
+  await assertRejects(
+    () =>
+      runCleanup(
+        makeMock({
+          listRoot: { data: [{ name: "sess-1" }], error: null },
+          sessions: { data: [], error: { message: "db error" } },
+        }),
+      ),
+    Error,
+    "Sessions query failed: db error",
+  );
 });
 
 Deno.test("remove fails for one prefix — recorded in errors, others continue", async () => {
@@ -124,6 +119,7 @@ Deno.test("remove fails for one prefix — recorded in errors, others continue",
   assertEquals(result.deleted, 0);
   assertEquals(result.files_deleted, 0);
   assertEquals(result.errors.length, 2);
+  assertEquals(result.errors[0].prefix, "orphan-a");
   assertEquals(result.errors[0].message, "storage error");
 });
 
