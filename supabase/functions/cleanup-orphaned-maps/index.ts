@@ -7,16 +7,20 @@ interface CleanupError {
 }
 
 export interface CleanupResult {
+  /** Unique session ID prefixes found in the maps bucket. */
   checked: number;
+  /** Prefixes with no matching row in the sessions table. */
   orphaned: number;
+  /** Orphaned prefixes successfully deleted (may be less than orphaned when errors occur). */
   deleted: number;
+  /** Total individual files removed across all deleted prefixes. */
   files_deleted: number;
   errors: CleanupError[];
 }
 
 // Exported so it can be unit-tested with a mock client.
 export async function runCleanup(supabase: SupabaseClient): Promise<CleanupResult> {
-  // Stub — implemented in Task 2.
+  // Stub — implemented in Task 3.
   return { checked: 0, orphaned: 0, deleted: 0, files_deleted: 0, errors: [] };
 }
 
