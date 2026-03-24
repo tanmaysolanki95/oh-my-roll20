@@ -1,4 +1,3 @@
-/// <reference lib="deno.ns" />
 // supabase/functions/cleanup-orphaned-maps/index.ts
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
