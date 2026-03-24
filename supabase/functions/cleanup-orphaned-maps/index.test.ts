@@ -1,4 +1,5 @@
 // supabase/functions/cleanup-orphaned-maps/index.test.ts
+/// <reference lib="deno.ns" />
 import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { runCleanup } from "./index.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";

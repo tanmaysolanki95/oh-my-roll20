@@ -1,4 +1,5 @@
 // supabase/functions/cleanup-orphaned-maps/index.ts
+/// <reference lib="deno.ns" />
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 interface CleanupError {
