@@ -7,6 +7,45 @@ import { createClient } from "@/lib/supabase/client";
 import { useSessionStore } from "@/store/session";
 import type { Token, DiceRoll, BroadcastEvent, Session } from "@/types";
 
+// Matches VIRTUAL_SIZE in mapUtils — used for coordinate bounds checking
+const VIRTUAL_SIZE = 6000;
+
+// Broadcast payload validators — all fields are checked at runtime because
+// Supabase broadcast has no server-side schema enforcement: any connected
+// client can send any payload. TypeScript casts alone are not sufficient.
+
+function isValidTokenMove(p: unknown): p is Extract<BroadcastEvent, { type: "token_move" }> {
+  if (typeof p !== "object" || p === null) return false;
+  const { token_id, x, y } = p as Record<string, unknown>;
+  return (
+    typeof token_id === "string" && token_id.length > 0 &&
+    typeof x === "number" && Number.isFinite(x) && x >= -VIRTUAL_SIZE && x <= VIRTUAL_SIZE * 2 &&
+    typeof y === "number" && Number.isFinite(y) && y >= -VIRTUAL_SIZE && y <= VIRTUAL_SIZE * 2
+  );
+}
+
+function isValidTokenDrag(p: unknown): p is Extract<BroadcastEvent, { type: "token_drag_start" }> {
+  if (typeof p !== "object" || p === null) return false;
+  const { token_id, user_id } = p as Record<string, unknown>;
+  return (
+    typeof token_id === "string" && token_id.length > 0 &&
+    typeof user_id === "string" && user_id.length > 0
+  );
+}
+
+function isValidDiceRoll(p: unknown): p is Extract<BroadcastEvent, { type: "dice_roll" }> {
+  if (typeof p !== "object" || p === null) return false;
+  const { roll_id, player_name, expression, result, breakdown, created_at } = p as Record<string, unknown>;
+  return (
+    typeof roll_id === "string" && roll_id.length > 0 &&
+    typeof player_name === "string" && player_name.length > 0 && player_name.length <= 100 &&
+    typeof expression === "string" && expression.length > 0 && expression.length <= 100 &&
+    typeof result === "number" && Number.isInteger(result) &&
+    typeof breakdown === "string" && breakdown.length <= 1000 &&
+    typeof created_at === "string" && created_at.length > 0
+  );
+}
+
 export function useRealtimeSession(sessionId: string) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const router = useRouter();
@@ -54,57 +93,46 @@ export function useRealtimeSession(sessionId: string) {
     });
 
     // --- Broadcast: live token drag ---
-    channel.on(
-      "broadcast",
-      { event: "token_move" },
-      ({ payload }: { payload: Extract<BroadcastEvent, { type: "token_move" }> }) => {
-        updateTokenPosition(payload.token_id, payload.x, payload.y);
-      }
-    );
+    channel.on("broadcast", { event: "token_move" }, ({ payload }) => {
+      if (!isValidTokenMove(payload)) return;
+      updateTokenPosition(payload.token_id, payload.x, payload.y);
+    });
 
     // --- Broadcast: session ended (DM kicked everyone out) ---
-    channel.on(
-      "broadcast",
-      { event: "session_ended" },
-      () => { router.push("/"); }
-    );
+    // Note: any connected client can send this event — Supabase broadcast has no
+    // server-side authorization. The impact is limited to redirecting clients to
+    // the lobby, which is disruptive but recoverable.
+    channel.on("broadcast", { event: "session_ended" }, () => {
+      router.push("/");
+    });
 
     // --- Broadcast: token drag lock ---
-    channel.on(
-      "broadcast",
-      { event: "token_drag_start" },
-      ({ payload }: { payload: Extract<BroadcastEvent, { type: "token_drag_start" }> }) => {
-        setLockedBy((prev) => ({ ...prev, [payload.token_id]: payload.user_id }));
-      }
-    );
-    channel.on(
-      "broadcast",
-      { event: "token_drag_end" },
-      ({ payload }: { payload: Extract<BroadcastEvent, { type: "token_drag_end" }> }) => {
-        setLockedBy((prev) => {
-          const next = { ...prev };
-          delete next[payload.token_id];
-          return next;
-        });
-      }
-    );
+    channel.on("broadcast", { event: "token_drag_start" }, ({ payload }) => {
+      if (!isValidTokenDrag(payload)) return;
+      setLockedBy((prev) => ({ ...prev, [payload.token_id]: payload.user_id }));
+    });
+    channel.on("broadcast", { event: "token_drag_end" }, ({ payload }) => {
+      if (!isValidTokenDrag(payload)) return;
+      setLockedBy((prev) => {
+        const next = { ...prev };
+        delete next[payload.token_id];
+        return next;
+      });
+    });
 
     // --- Broadcast: dice roll ---
-    channel.on(
-      "broadcast",
-      { event: "dice_roll" },
-      ({ payload }: { payload: Extract<BroadcastEvent, { type: "dice_roll" }> }) => {
-        addDiceRoll({
-          id: payload.roll_id,
-          session_id: sessionId,
-          player_name: payload.player_name,
-          expression: payload.expression,
-          result: payload.result,
-          breakdown: payload.breakdown,
-          created_at: payload.created_at,
-        });
-      }
-    );
+    channel.on("broadcast", { event: "dice_roll" }, ({ payload }) => {
+      if (!isValidDiceRoll(payload)) return;
+      addDiceRoll({
+        id: payload.roll_id,
+        session_id: sessionId,
+        player_name: payload.player_name,
+        expression: payload.expression,
+        result: payload.result,
+        breakdown: payload.breakdown,
+        created_at: payload.created_at,
+      });
+    });
 
     // --- Postgres Changes: tokens ---
     // Filter in JS rather than server-side to avoid filter parsing issues.
