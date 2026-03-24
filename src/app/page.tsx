@@ -290,14 +290,14 @@ export default function Home() {
             style={{ fontFamily: "var(--theme-font-display)" }}>
             Join Session
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 min-w-0">
             <input
               type="text"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && joinSession()}
               placeholder="A3F2B9"
-              className="flex-1 px-3 py-2 rounded-md text-sm font-mono tracking-widest uppercase text-center transition-all placeholder:opacity-30 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]/40"
+              className="flex-1 min-w-0 px-3 py-2 rounded-md text-sm font-mono tracking-widest uppercase text-center transition-all placeholder:opacity-30 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]/40"
               style={{
                 background: `color-mix(in srgb, var(--theme-bg-deep) 85%, transparent)`,
                 border: "1px solid color-mix(in srgb, var(--theme-border-accent) 65%, transparent)",
@@ -307,7 +307,7 @@ export default function Home() {
             <button
               onClick={joinSession}
               disabled={loading}
-              className="shrink-0 px-3 py-2 rounded-lg text-sm font-bold tracking-wide uppercase transition-all active:scale-[0.98] disabled:opacity-50"
+              className="shrink-0 whitespace-nowrap px-3 py-2 rounded-lg text-sm font-bold tracking-wide uppercase transition-all active:scale-[0.98] disabled:opacity-50"
               style={{
                 background: `color-mix(in srgb, var(--theme-accent-dim) 35%, var(--theme-bg-deep))`,
                 border: "1px solid var(--theme-border-accent)",
