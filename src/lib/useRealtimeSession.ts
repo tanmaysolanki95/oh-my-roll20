@@ -48,6 +48,7 @@ function isValidDiceRoll(p: unknown): p is Extract<BroadcastEvent, { type: "dice
 
 export function useRealtimeSession(sessionId: string) {
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const lastBroadcastRef = useRef<Record<string, number>>({});
   const router = useRouter();
   // token_id → user_id of whoever is currently dragging that token
   const [lockedBy, setLockedBy] = useState<Record<string, string>>({});
@@ -217,6 +218,9 @@ export function useRealtimeSession(sessionId: string) {
   }, [playerName, playerColor, userId]);
 
   const broadcastTokenMove = (token_id: string, x: number, y: number) => {
+    const now = Date.now();
+    if (now - (lastBroadcastRef.current[token_id] ?? 0) < 50) return; // ~20 fps
+    lastBroadcastRef.current[token_id] = now;
     channelRef.current?.send({
       type: "broadcast",
       event: "token_move",
