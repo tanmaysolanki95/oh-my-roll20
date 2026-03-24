@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 // supabase/functions/cleanup-orphaned-maps/index.ts
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -20,8 +21,63 @@ export interface CleanupResult {
 
 // Exported so it can be unit-tested with a mock client.
 export async function runCleanup(supabase: SupabaseClient): Promise<CleanupResult> {
-  // Stub — implemented in Task 3.
-  return { checked: 0, orphaned: 0, deleted: 0, files_deleted: 0, errors: [] };
+  const result: CleanupResult = {
+    checked: 0,
+    orphaned: 0,
+    deleted: 0,
+    files_deleted: 0,
+    errors: [],
+  };
+
+  // 1. List top-level prefixes (one per session ID) in the maps bucket.
+  const { data: prefixEntries, error: listError } = await supabase.storage
+    .from("maps")
+    .list("", { limit: 1000 });
+
+  if (listError) throw new Error(`Storage list failed: ${listError.message}`);
+  if (!prefixEntries || prefixEntries.length === 0) return result;
+
+  const prefixes = prefixEntries.map((e: { name: string }) => e.name);
+  result.checked = prefixes.length;
+
+  // 2. Find which prefixes still have a live session row.
+  const { data: sessions, error: queryError } = await supabase
+    .from("sessions")
+    .select("id")
+    .in("id", prefixes);
+
+  if (queryError) throw new Error(`Sessions query failed: ${queryError.message}`);
+
+  const liveIds = new Set((sessions ?? []).map((s: { id: string }) => s.id));
+  const orphaned = prefixes.filter((p: string) => !liveIds.has(p));
+  result.orphaned = orphaned.length;
+
+  // 3. Delete each orphaned prefix's files.
+  for (const prefix of orphaned) {
+    const { data: files, error: filesError } = await supabase.storage
+      .from("maps")
+      .list(prefix, { limit: 1000 });
+
+    if (filesError) {
+      result.errors.push({ prefix, message: filesError.message });
+      continue;
+    }
+
+    if (!files || files.length === 0) continue;
+
+    const paths = files.map((f: { name: string }) => `${prefix}/${f.name}`);
+    const { error: removeError } = await supabase.storage.from("maps").remove(paths);
+
+    if (removeError) {
+      result.errors.push({ prefix, message: removeError.message });
+      continue;
+    }
+
+    result.deleted += 1;
+    result.files_deleted += files.length;
+  }
+
+  return result;
 }
 
 if (import.meta.main) {
