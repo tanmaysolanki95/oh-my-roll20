@@ -24,8 +24,9 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline'",
       // Inline styles are used throughout (Konva, Tailwind, theme vars)
       "style-src 'self' 'unsafe-inline'",
-      // Map images from Supabase storage; data: for Konva canvas export; blob: for object URLs
-      `img-src 'self' https://${supabaseHost} data: blob:`,
+      // Map images may come from Supabase storage or any HTTPS source (user-uploaded URLs);
+      // data: for Konva canvas export; blob: for object URLs
+      `img-src 'self' https: data: blob:`,
       // Supabase REST API + WebSocket realtime
       `connect-src 'self' https://${supabaseHost} wss://${supabaseHost}`,
       // Fonts served from same origin only

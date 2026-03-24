@@ -44,7 +44,9 @@ export async function POST(req: NextRequest) {
   const file = form.get("file");
   const sessionId = form.get("sessionId");
 
-  if (!(file instanceof File) || typeof sessionId !== "string" || !sessionId) {
+  // File extends Blob; Next.js App Router may return Blob rather than File
+  // depending on the runtime version, so check for Blob (the common ancestor).
+  if (!(file instanceof Blob) || typeof sessionId !== "string" || !sessionId) {
     return NextResponse.json({ error: "Missing file or sessionId" }, { status: 400 });
   }
 
