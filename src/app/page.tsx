@@ -72,16 +72,25 @@ export default function Home() {
 
     if (err || !data) { setError(err?.message ?? "Failed to create session"); setLoading(false); return; }
 
-    // Optional map upload
+    // Optional map upload — goes through the server route so the service role
+    // key handles the storage INSERT (direct client uploads are now blocked by RLS).
     if (mapFile) {
-      const ext = mapFile.name.split(".").pop() ?? "png";
-      const path = `${data.id}/map.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from("maps").upload(path, mapFile);
-      if (!uploadErr) {
-        const { data: urlData } = supabase.storage.from("maps").getPublicUrl(path);
-        await supabase.from("sessions").update({ map_url: urlData.publicUrl }).eq("id", data.id);
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (authSession) {
+        const form = new FormData();
+        form.append("file", mapFile);
+        form.append("sessionId", data.id);
+        const res = await fetch("/api/upload-map", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authSession.access_token}` },
+          body: form,
+        });
+        if (res.ok) {
+          const { url } = await res.json() as { url: string };
+          await supabase.from("sessions").update({ map_url: url }).eq("id", data.id);
+        }
+        // Non-fatal: session still created; user can upload map from inside session
       }
-      // Non-fatal: session still created; user can upload map from inside session
     }
 
     setLoading(false);
