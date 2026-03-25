@@ -86,10 +86,15 @@ export function useMapZoom(imageBounds: Bounds) {
       setZoom(newScale, pointer.x, pointer.y);
     } else {
       // Distinguish mouse scroll wheel from trackpad two-finger pan.
-      // Mouse wheels produce large discrete deltas (≥100 in Chrome/Safari) or
-      // deltaMode !== 0 (line/page mode in Firefox). Trackpad swipes produce
-      // small continuous pixel deltas.
-      const isMouseWheel = e.evt.deltaMode !== 0 || Math.abs(e.evt.deltaY) >= 100;
+      // Mouse wheels emit quantized steps: exactly 100px/notch in Chrome,
+      // 120px in some browsers, always with deltaX=0. Firefox reports
+      // deltaMode=1 (line mode). Trackpad swipes produce continuous
+      // velocity-proportional values that rarely land on these exact multiples.
+      const absY = Math.abs(e.evt.deltaY);
+      const isMouseWheel =
+        e.evt.deltaMode !== 0 ||                          // Firefox line/page mode
+        (e.evt.deltaX === 0 && absY > 0 &&               // no horizontal component
+          (absY % 100 === 0 || absY % 120 === 0));       // Chrome/Safari notch steps
       if (isMouseWheel) {
         // Mouse scroll wheel — zoom toward pointer
         const pointer = stageRef.current?.getPointerPosition();
