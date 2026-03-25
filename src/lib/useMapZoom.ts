@@ -85,14 +85,30 @@ export function useMapZoom(imageBounds: Bounds) {
       ));
       setZoom(newScale, pointer.x, pointer.y);
     } else {
-      // Two-finger pan (trackpad) or scroll wheel pan
-      const raw = {
-        x: stagePosRef.current.x - e.evt.deltaX,
-        y: stagePosRef.current.y - e.evt.deltaY,
-      };
-      const newPos = clampStagePos(raw, stageScaleRef.current, sizeRef.current, imageBoundsRef.current);
-      stagePosRef.current = newPos;
-      setStagePos(newPos);
+      // Distinguish mouse scroll wheel from trackpad two-finger pan.
+      // Mouse wheels produce large discrete deltas (≥100 in Chrome/Safari) or
+      // deltaMode !== 0 (line/page mode in Firefox). Trackpad swipes produce
+      // small continuous pixel deltas.
+      const isMouseWheel = e.evt.deltaMode !== 0 || Math.abs(e.evt.deltaY) >= 100;
+      if (isMouseWheel) {
+        // Mouse scroll wheel — zoom toward pointer
+        const pointer = stageRef.current?.getPointerPosition();
+        if (!pointer) return;
+        const direction = e.evt.deltaY < 0 ? 1 : -1;
+        const newScale = Math.max(minZoom, Math.min(MAX_SCALE,
+          direction > 0 ? stageScaleRef.current * SCALE_BY : stageScaleRef.current / SCALE_BY
+        ));
+        setZoom(newScale, pointer.x, pointer.y);
+      } else {
+        // Two-finger pan (Mac trackpad)
+        const raw = {
+          x: stagePosRef.current.x - e.evt.deltaX,
+          y: stagePosRef.current.y - e.evt.deltaY,
+        };
+        const newPos = clampStagePos(raw, stageScaleRef.current, sizeRef.current, imageBoundsRef.current);
+        stagePosRef.current = newPos;
+        setStagePos(newPos);
+      }
     }
   }, [setZoom, minZoom]);
 
